@@ -1,0 +1,67 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--color-primary-50);
+  border-radius: var(--radius-md);
+}
+
+.label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-muted);
+}
+
+.kcal {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+  margin-top: 2px;
+}
+
+.macros {
+  display: flex;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.macro {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.macroLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+
+.macroDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.protein {
+  background: var(--color-protein);
+}
+
+.carbohydrate {
+  background: var(--color-carb);
+}
+
+.fat {
+  background: var(--color-fat);
+}
+
+.macroValue {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
+}

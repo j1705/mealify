@@ -1,0 +1,132 @@
+.wrap {
+  overflow-x: auto;
+  container-type: inline-size;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.name {
+  font-weight: var(--fw-medium);
+}
+
+.actionsCell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.actionButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+}
+
+.actionButton:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.deleteButton:hover {
+  color: var(--color-error);
+  background: var(--color-error-bg);
+}
+
+.list td {
+  padding: var(--space-4);
+}
+
+.list tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.list tbody tr:hover {
+  background: var(--color-bg);
+}
+
+@container (max-width: 720px) {
+  .stacked thead {
+    display: none;
+  }
+
+  .stacked,
+  .stacked tbody,
+  .stacked tr {
+    display: block;
+    width: 100%;
+  }
+
+  .stacked tr {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .stacked tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .stacked td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: none;
+    padding: var(--space-2) 0;
+    text-align: right;
+    gap: var(--space-3);
+  }
+
+  .stacked td::before {
+    content: attr(data-label);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    text-align: left;
+  }
+
+  .stacked .actionsCell {
+    justify-content: flex-end;
+  }
+
+  .stacked .actionsCell::before {
+    content: none;
+  }
+}

@@ -1,0 +1,10 @@
+.rowLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rowLink:hover,
+.rowLink:focus-visible {
+  text-decoration: underline;
+}

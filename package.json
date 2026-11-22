@@ -1,0 +1,16 @@
+{
+  "name": "mealify",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "docker:start": "docker compose up -d",
+    "docker:stop": "docker compose down",
+    "docker:ps": "docker compose ps",
+    "docker:log": "docker compose logs -f postgres"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

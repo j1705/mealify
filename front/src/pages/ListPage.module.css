@@ -1,0 +1,11 @@
+.cardMessage {
+  padding: var(--space-6);
+}
+
+.cardFooter {
+  padding: 0 var(--space-6) var(--space-6);
+}
+
+.sortSelect {
+  min-width: 190px;
+}
