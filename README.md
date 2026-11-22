@@ -1,5 +1,7 @@
 # Mealify
 
+[![CI](https://github.com/j1705/mealify/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/j1705/mealify/actions/workflows/ci.yml)
+
 Aplicação web para registrar refeições e acompanhar calorias e macronutrientes. O usuário cadastra os alimentos (itens), monta as refeições com eles e vê o resumo do dia.
 
 ## Partes do projeto
