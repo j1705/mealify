@@ -16,7 +16,7 @@ env:
 jobs:
   api:
     name: API (typecheck, lint, format, unit, integration)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: api
@@ -52,7 +52,7 @@ jobs:
 
   front:
     name: Front (typecheck, lint, format, unit, build)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: front
@@ -72,7 +72,7 @@ jobs:
 
   e2e:
     name: E2E (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [api, front]
     services:
       postgres:
