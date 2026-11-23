@@ -6,6 +6,7 @@ export type AuthStatus = "loading" | "anonymous" | "authenticated";
 export type AuthContextValue = {
   status: AuthStatus;
   user: User | null;
+  loggedOut: boolean;
   login: (credentials: Credentials) => Promise<void>;
   register: (credentials: Credentials) => Promise<void>;
   logout: () => Promise<void>;

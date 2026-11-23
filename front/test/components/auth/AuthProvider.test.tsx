@@ -20,6 +20,7 @@ function Probe() {
     <div>
       <span data-testid="status">{auth.status}</span>
       <span data-testid="email">{auth.user?.email ?? ""}</span>
+      <span data-testid="logged-out">{String(auth.loggedOut)}</span>
       <span data-testid="error">{error ?? ""}</span>
       <button onClick={run(() => auth.login(credentials))}>login</button>
       <button onClick={run(() => auth.register(credentials))}>register</button>
@@ -66,6 +67,7 @@ describe("AuthProvider", () => {
 
     await waitFor(() => expect(status()).toBe("anonymous"));
     expect(email()).toBe("");
+    expect(screen.getByTestId("logged-out")).toHaveTextContent("false");
   });
 
   test("becomes anonymous when the session cannot be checked", async () => {
@@ -112,6 +114,22 @@ describe("AuthProvider", () => {
 
     await waitFor(() => expect(status()).toBe("anonymous"));
     expect(logout).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("logged-out")).toHaveTextContent("true");
+  });
+
+  test("forgets the logout once the user logs in again", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue(ana);
+    vi.mocked(logout).mockResolvedValue();
+    vi.mocked(login).mockResolvedValue(ana);
+    renderProbe();
+    await waitFor(() => expect(status()).toBe("authenticated"));
+    fireEvent.click(screen.getByText("logout"));
+    await waitFor(() => expect(status()).toBe("anonymous"));
+
+    fireEvent.click(screen.getByText("login"));
+
+    await waitFor(() => expect(status()).toBe("authenticated"));
+    expect(screen.getByTestId("logged-out")).toHaveTextContent("false");
   });
 
   test("keeps the session when the logout fails", async () => {
@@ -163,6 +181,7 @@ describe("AuthProvider", () => {
     });
 
     expect(status()).toBe("anonymous");
+    expect(screen.getByTestId("logged-out")).toHaveTextContent("false");
     vi.unstubAllGlobals();
   });
 

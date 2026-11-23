@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import Header from "../../src/components/layout/Header";
 import { renderWithAuth } from "../renderWithAuth";
@@ -14,15 +14,15 @@ describe("Header", () => {
     expect(screen.getByText("ana@example.com")).toBeInTheDocument();
   });
 
-  test("logs out and goes to the login page", async () => {
+  test("logs out, leaving the redirection to the login to the protected routes", async () => {
     const { auth } = renderWithAuth(<Header onMenuClick={() => {}} />, {
       auth: { status: "authenticated", user: ana },
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Sair" }));
 
-    expect(await screen.findByTestId("location")).toHaveTextContent(/^\/login$/);
-    expect(auth.logout).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(auth.logout).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId("location")).not.toBeInTheDocument();
   });
 
   test("warns when the logout fails and stays on the page", async () => {
