@@ -9,6 +9,7 @@ export function corsMiddleware(allowedOrigin: string) {
     res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
     res.setHeader("Access-Control-Allow-Methods", ALLOWED_METHODS);
     res.setHeader("Access-Control-Allow-Headers", ALLOWED_HEADERS);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
 
     if (req.method === "OPTIONS") {
       res.sendStatus(NO_CONTENT);

@@ -27,4 +27,24 @@ export class ItemAlreadyRegisteredError extends ConflictError {
   }
 }
 
+export class EmailAlreadyRegisteredError extends ConflictError {
+  constructor() {
+    super("Email already registered");
+  }
+}
+
 export class ValidationError extends DomainError {}
+
+export class UnauthorizedError extends DomainError {}
+
+export class InvalidCredentialsError extends UnauthorizedError {
+  constructor() {
+    super("Invalid email or password");
+  }
+}
+
+export class AuthenticationRequiredError extends UnauthorizedError {
+  constructor() {
+    super("Authentication required");
+  }
+}

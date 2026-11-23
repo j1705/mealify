@@ -19,7 +19,7 @@ describe("MealController", () => {
     { execute: jest.Mock }
   >;
   const route = (key: string) => (params: HttpParams, body: unknown, query: HttpQuery) =>
-    handlers[key]!({ params, body, query });
+    handlers[key]!({ params, body, query, cookies: {} });
 
   beforeEach(() => {
     handlers = {};

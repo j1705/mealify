@@ -30,13 +30,14 @@ function run(method: string) {
 }
 
 describe("corsMiddleware", () => {
-  test("Should allow the front origin only for the methods and headers the API uses", () => {
+  test("Should allow the front origin, with its cookies, only for the methods and headers the API uses", () => {
     const { response } = run("GET");
 
     expect(response.headers).toEqual({
       "Access-Control-Allow-Origin": "http://front.local",
       "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Credentials": "true",
     });
   });
 

@@ -1,3 +1,9 @@
+import AuthenticateUseCase from "./application/usecase/auth/Authenticate";
+import GetCurrentUserUseCase from "./application/usecase/auth/GetCurrentUser";
+import LoginUseCase from "./application/usecase/auth/Login";
+import LogoutUseCase from "./application/usecase/auth/Logout";
+import RegisterUserUseCase from "./application/usecase/auth/RegisterUser";
+import SessionStarter from "./application/service/SessionStarter";
 import CreateItemUseCase from "./application/usecase/item/CreateItem";
 import DeleteItemUseCase from "./application/usecase/item/DeleteItem";
 import GetItemUseCase from "./application/usecase/item/GetItem";
@@ -10,19 +16,48 @@ import GetDailyTotalsUseCase from "./application/usecase/meal/GetDailyTotals";
 import GetMealUseCase from "./application/usecase/meal/GetMeal";
 import GetMealsUseCase from "./application/usecase/meal/GetMeals";
 import UpdateMealUseCase from "./application/usecase/meal/UpdateMeal";
+import CryptoSessionTokens from "./infra/auth/CryptoSessionTokens";
+import ScryptPasswordHasher from "./infra/auth/ScryptPasswordHasher";
 import SystemClock from "./infra/clock/SystemClock";
+import AuthController from "./infra/controller/AuthController";
 import ItemController from "./infra/controller/ItemController";
 import MealController from "./infra/controller/MealController";
 import DatabaseConnection from "./infra/database/DatabaseConnection";
 import HttpServer, { ExpressAdapter } from "./infra/http/HttpServer";
+import SessionCookie from "./infra/http/SessionCookie";
 import ItemRepositoryDatabase from "./infra/repositoryDatabase/item/ItemRepositoryDatabase";
 import MealRepositoryDatabase from "./infra/repositoryDatabase/meal/MealRepositoryDatabase";
+import SessionRepositoryDatabase from "./infra/repositoryDatabase/session/SessionRepositoryDatabase";
+import UserRepositoryDatabase from "./infra/repositoryDatabase/user/UserRepositoryDatabase";
 
-export function buildApp(connection: DatabaseConnection, allowedOrigin?: string): HttpServer {
-  const httpServer = new ExpressAdapter(allowedOrigin);
+export type AppOptions = {
+  corsOrigin?: string;
+  secureCookies?: boolean;
+};
+
+export function buildApp(
+  connection: DatabaseConnection,
+  { corsOrigin, secureCookies = false }: AppOptions = {},
+): HttpServer {
+  const httpServer = new ExpressAdapter(corsOrigin);
   const itemRepository = new ItemRepositoryDatabase(connection);
   const mealRepository = new MealRepositoryDatabase(connection);
+  const userRepository = new UserRepositoryDatabase(connection);
+  const sessionRepository = new SessionRepositoryDatabase(connection);
   const clock = new SystemClock();
+  const passwordHasher = new ScryptPasswordHasher();
+  const sessionTokens = new CryptoSessionTokens();
+  const sessionStarter = new SessionStarter(sessionRepository, sessionTokens, clock);
+
+  new AuthController(
+    httpServer,
+    new RegisterUserUseCase(userRepository, passwordHasher, sessionStarter, clock),
+    new LoginUseCase(userRepository, passwordHasher, sessionStarter),
+    new LogoutUseCase(sessionRepository, sessionTokens),
+    new AuthenticateUseCase(sessionRepository, sessionTokens, clock),
+    new GetCurrentUserUseCase(userRepository),
+    new SessionCookie(secureCookies),
+  );
 
   new ItemController(
     httpServer,
