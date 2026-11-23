@@ -74,7 +74,7 @@ describe("ExpressAdapter error mapping", () => {
       throw new Error("database is down at /home/someone/secret.ts");
     });
     adapter.register("post", "/created", async () => ({ ok: true }), 201);
-    adapter.register("get", "/echo-query", async (_params, _body, query) => query);
+    adapter.register("get", "/echo-query", async ({ query }) => query);
     server = await adapter.listen(0);
   });
 

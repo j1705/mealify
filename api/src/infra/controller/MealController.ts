@@ -26,13 +26,13 @@ export default class MealController {
     httpServer.register(
       "post",
       "/meals",
-      async (_params, body) => {
+      async ({ body }) => {
         validateItems((body as { items?: unknown } | null)?.items);
         return createMeal.execute(body as MealInput);
       },
       201,
     );
-    httpServer.register("get", "/meals", async (_params, _body, query) => {
+    httpServer.register("get", "/meals", async ({ query }) => {
       const pagination = new HandlePagination(query);
       const search = new HandleSearch(query.search);
       const date = new HandleDateFilter(query.date);
@@ -42,21 +42,21 @@ export default class MealController {
         date: date.getValue(),
       });
     });
-    httpServer.register("get", "/meals/totals", async (_params, _body, query) => {
+    httpServer.register("get", "/meals/totals", async ({ query }) => {
       const date = new HandleDateFilter(query.date).getValue();
       if (date === undefined) throw new BadRequestError("Date is required");
       return getDailyTotals.execute(date);
     });
-    httpServer.register("get", "/meals/:mealId", async (params) => {
+    httpServer.register("get", "/meals/:mealId", async ({ params }) => {
       const mealId = new HandleId(params.mealId);
       return getMeal.execute(mealId.getValue());
     });
-    httpServer.register("put", "/meals/:mealId", async (params, body) => {
+    httpServer.register("put", "/meals/:mealId", async ({ params, body }) => {
       const mealId = new HandleId(params.mealId);
       validateItems((body as { items?: unknown } | null)?.items);
       return updateMeal.execute(mealId.getValue(), body as MealInput);
     });
-    httpServer.register("delete", "/meals/:mealId", async (params) => {
+    httpServer.register("delete", "/meals/:mealId", async ({ params }) => {
       const mealId = new HandleId(params.mealId);
       return deleteMeal.execute(mealId.getValue());
     });
