@@ -18,6 +18,15 @@ const TRANSLATED_API_MESSAGES = new Map(
     "Description must be at least 3 characters long.":
       "A descrição deve ter pelo menos 3 caracteres.",
     "Description must not exceed 500 characters.": "A descrição deve ter no máximo 500 caracteres.",
+    "Email already registered": "Já existe uma conta com esse e-mail.",
+    "Invalid email or password": "E-mail ou senha incorretos.",
+    "Authentication required": "Sua sessão expirou. Entre novamente.",
+    "Email is required.": "Informe o e-mail.",
+    "Invalid email.": "E-mail inválido.",
+    "Email must not exceed 254 characters.": "O e-mail deve ter no máximo 254 caracteres.",
+    "Password is required.": "Informe a senha.",
+    "Password must be at least 8 characters long.": "A senha deve ter pelo menos 8 caracteres.",
+    "Password must not exceed 72 characters.": "A senha deve ter no máximo 72 caracteres.",
   }),
 );
 

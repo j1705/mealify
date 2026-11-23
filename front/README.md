@@ -4,14 +4,15 @@ Interface web do Mealify, feita com React 19, TypeScript, Vite e React Router. O
 
 ## Telas
 
-| Rota                                | Tela                                                          |
-| ----------------------------------- | ------------------------------------------------------------- |
-| `/`                                 | Início: resumo do dia (calorias e macros) e itens mais usados |
-| `/items`                            | Lista de itens, com busca, ordenação e paginação              |
-| `/items/new`, `/items/:itemId/edit` | Cadastro e edição de item                                     |
-| `/meals`                            | Lista de refeições                                            |
-| `/meals/new`, `/meals/:mealId/edit` | Cadastro e edição de refeição                                 |
-| `/meals/:mealId`                    | Detalhes da refeição                                          |
+| Rota                                | Tela                                                            |
+| ----------------------------------- | --------------------------------------------------------------- |
+| `/`                                 | Início: resumo do dia (calorias e macros) e itens mais usados   |
+| `/items`                            | Lista de itens, com busca, ordenação e paginação                |
+| `/items/new`, `/items/:itemId/edit` | Cadastro e edição de item                                       |
+| `/meals`                            | Lista de refeições                                              |
+| `/meals/new`, `/meals/:mealId/edit` | Cadastro e edição de refeição                                   |
+| `/meals/:mealId`                    | Detalhes da refeição                                            |
+| `/login`, `/register`               | Login e criação de conta (aceitam `?next=` com a rota de volta) |
 
 ## Como rodar
 
@@ -44,12 +45,12 @@ VITE_API_URL=http://localhost:3100 npm run dev
 
 ```
 src/
-  pages/        telas, uma por rota (items/, meals/, HomePage)
-  components/   componentes por domínio (items/, meals/), layout/ e ui/ (base reutilizável)
-  hooks/        estado e carregamento de dados (useAsync, usePagedSearch, useSaveAction…)
-  services/     acesso à API (http.ts, itemService, mealService) e tradução das mensagens de erro
+  pages/        telas, uma por rota (auth/, items/, meals/, HomePage)
+  components/   componentes por domínio (auth/, items/, meals/), layout/ e ui/ (base reutilizável)
+  hooks/        estado e carregamento de dados (useAsync, usePagedSearch, useSaveAction, useAuthRedirect…)
+  services/     acesso à API (http.ts, authService, itemService, mealService) e tradução das mensagens de erro
   utils/        funções puras: datas, números decimais, nutrição, validação
-  types/        tipos do domínio (Item, Meal, Nutrition, Pagination)
+  types/        tipos do domínio (Item, Meal, Nutrition, Pagination, User)
   styles/       estilos globais; os componentes usam CSS Modules
 test/           espelha src/ (components, hooks, pages, services, utils)
 ```

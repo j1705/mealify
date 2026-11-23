@@ -90,6 +90,10 @@
 .userName {
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {
