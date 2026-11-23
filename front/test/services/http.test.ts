@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { API_URL } from "../../src/config";
-import { request } from "../../src/services/http";
+import { ApiError, request } from "../../src/services/http";
 
 function stubFetch(status: number, body?: unknown) {
   const response = new Response(body === undefined ? null : JSON.stringify(body), { status });
@@ -32,7 +32,25 @@ describe("request", () => {
       method: "POST",
       body: JSON.stringify({ name: "Rice" }),
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
     });
+  });
+
+  test("sends the session cookie to the API on every request", async () => {
+    const fetchMock = stubFetch(200, {});
+
+    await request("/items", "Falhou");
+
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ credentials: "include" });
+  });
+
+  test("rejects with an ApiError carrying the response status", async () => {
+    stubFetch(401, { message: "Authentication required" });
+
+    const error = await request("/auth/me", "Falhou").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 401 });
   });
 
   test("forwards the abort signal", async () => {

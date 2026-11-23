@@ -40,6 +40,7 @@ env.ts                  URLs da API e do front de teste
 playwright.config.ts    servidores, navegador e relatórios
 tests/
   fixtures.ts           fixture `data`: cria itens e refeições pela API e limpa tudo no fim
+  auth.spec.ts          criação de conta, logout, login, senha errada e e-mail repetido
   home.spec.ts          resumo do dia e itens mais usados
   items.spec.ts         cadastro, edição, busca, ordenação, paginação e exclusão de itens
   meals.spec.ts         cadastro, edição, exclusão, busca e paginação de refeições

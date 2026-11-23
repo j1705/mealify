@@ -7,6 +7,16 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 const CONNECTION_FAILED =
   "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.";
 
@@ -17,13 +27,14 @@ export async function request<T>(
 ): Promise<T> {
   const response = await send(`${API_URL}${path}`, {
     ...options,
+    credentials: "include",
     ...(body === undefined
       ? {}
       : { body: JSON.stringify(body), headers: { "Content-Type": "application/json" } }),
   });
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(translateApiMessage(data?.message, fallbackMessage));
+    throw new ApiError(translateApiMessage(data?.message, fallbackMessage), response.status);
   }
   return data as T;
 }
