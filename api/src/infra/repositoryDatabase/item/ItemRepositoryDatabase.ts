@@ -7,6 +7,7 @@ import {
   ItemNotFoundError,
 } from "../../../domain/error/DomainError";
 import DatabaseConnection from "../../database/DatabaseConnection";
+import { isForeignKeyViolation, isUniqueViolation } from "../../database/postgresErrors";
 import { containsPattern, nameMatchesFilter } from "../nameSearch";
 
 type ItemRow = {
@@ -138,21 +139,6 @@ const SORT_COLUMNS: Record<ItemSortField, string> = {
 };
 
 const NEWEST_FIRST = "id desc";
-
-const FOREIGN_KEY_VIOLATION = "23503";
-const UNIQUE_VIOLATION = "23505";
-
-function hasPostgresCode(error: unknown, code: string): boolean {
-  return (error as { code?: unknown } | null)?.code === code;
-}
-
-function isForeignKeyViolation(error: unknown): boolean {
-  return hasPostgresCode(error, FOREIGN_KEY_VIOLATION);
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return hasPostgresCode(error, UNIQUE_VIOLATION);
-}
 
 function orderBy({ field, order }: ItemSort): string {
   return `${SORT_COLUMNS[field]} ${order === "asc" ? "asc" : "desc"}, ${NEWEST_FIRST}`;

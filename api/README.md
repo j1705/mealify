@@ -17,13 +17,14 @@ npm run dev                        # http://localhost:3000, com reload automáti
 
 ### Variáveis de ambiente
 
-| Variável                                                  | Uso                                                               |
-| --------------------------------------------------------- | ----------------------------------------------------------------- |
-| `PORT`                                                    | Porta HTTP (padrão do exemplo: `3000`)                            |
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Conexão da aplicação com o Postgres                               |
-| `DATABASE_URL`                                            | Conexão usada pelo dbmate nas migrations                          |
-| `DBMATE_NO_DUMP_SCHEMA`                                   | Evita gerar `schema.sql` a cada migration                         |
-| `CORS_ORIGIN`                                             | Origem do front liberada no CORS (padrão `http://localhost:5173`) |
+| Variável                                                  | Uso                                                                      |
+| --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `PORT`                                                    | Porta HTTP (padrão do exemplo: `3000`)                                   |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Conexão da aplicação com o Postgres                                      |
+| `DATABASE_URL`                                            | Conexão usada pelo dbmate nas migrations                                 |
+| `DBMATE_NO_DUMP_SCHEMA`                                   | Evita gerar `schema.sql` a cada migration                                |
+| `CORS_ORIGIN`                                             | Origem do front liberada no CORS (padrão `http://localhost:5173`)        |
+| `COOKIE_SECURE`                                           | `true` marca o cookie de sessão como `Secure` (só HTTPS); padrão `false` |
 
 O `.env.test` (copie de `.env.test.example`) aponta para o banco `mealify_test` e a porta `3100`. Ele é usado pelos testes de integração e pelos testes e2e.
 
@@ -45,6 +46,17 @@ O `.env.test` (copie de `.env.test.example`) aponta para o banco `mealify_test` 
 | `npm run db:test:prepare`                          | Migra e popula o `mealify_test`                                      |
 
 ## Endpoints
+
+### Autenticação
+
+A sessão fica no banco (tabela `sessions`, que guarda só o hash SHA-256 do token). O token viaja no cookie `mealify_session` (`HttpOnly`, `SameSite=Lax`, `Path=/`, 30 dias). As senhas são guardadas com `scrypt`.
+
+| Método e rota         | Descrição                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `POST /auth/register` | Cadastra `{ email, password }` e já abre a sessão (`201`, `{ userId, email }` + cookie). Senha de 8 a 72 caracteres |
+| `POST /auth/login`    | Abre uma sessão nova (`{ userId, email }` + cookie); credenciais erradas respondem `401` com mensagem única         |
+| `POST /auth/logout`   | Encerra a sessão do cookie e limpa o cookie (`204`, mesmo sem sessão)                                               |
+| `GET /auth/me`        | Usuário da sessão (`{ userId, email }`); `401` sem sessão válida                                                    |
 
 ### Itens
 
@@ -101,8 +113,9 @@ Os erros respondem `{ "message": "..." }`, em inglês. O front traduz essas mens
 | Status | Quando                                                                          |
 | ------ | ------------------------------------------------------------------------------- |
 | `400`  | Parâmetro ou corpo malformado (id, paginação, ordenação, data, JSON)            |
+| `401`  | Sem sessão válida ou credenciais erradas                                        |
 | `404`  | Item, refeição ou rota não encontrados                                          |
-| `409`  | Conflito: nome de item repetido ou item em uso                                  |
+| `409`  | Conflito: nome de item ou e-mail repetido, ou item em uso                       |
 | `422`  | Regra de domínio violada (nome curto, quantidade inválida, refeição sem itens…) |
 | `500`  | Erro inesperado                                                                 |
 
@@ -113,18 +126,21 @@ O código segue uma arquitetura em camadas, e as dependências apontam sempre pa
 ```
 src/
   domain/        regras de negócio puras
-    entity/      Item, Meal, MealItem
-    vo/          value objects que se validam (Name, Quantity, Calories, Unit, MealDate…)
+    entity/      Item, Meal, MealItem, User, Session
+    vo/          value objects que se validam (Name, Quantity, Calories, Unit, MealDate, Email, Password…)
     service/     cálculo de nutrientes
-    error/       erros de domínio (NotFound, Conflict, Validation)
+    error/       erros de domínio (NotFound, Conflict, Validation, Unauthorized)
   application/   casos de uso e as portas que eles usam
     usecase/     um caso de uso por arquivo (CreateItem, GetMeals, GetDailyTotals…)
     repository/  interfaces dos repositórios
+    auth/        portas de hash de senha e de tokens de sessão
+    service/     serviços compartilhados entre casos de uso (abrir sessão, montar itens da refeição)
     clock/       interface do relógio, para controlar o tempo nos testes
     query/       tipos de paginação, busca e ordenação
     mapper/      conversão das entidades para a saída da API
   infra/         detalhes técnicos
-    http/        adaptador do Express, CORS, leitura e validação da query, mapeamento de erros para status
+    http/        adaptador do Express, CORS, cookies, leitura e validação da query, mapeamento de erros para status
+    auth/        hash de senha com scrypt e tokens de sessão com node:crypto
     controller/  ligação entre as rotas e os casos de uso
     repositoryDatabase/  implementação dos repositórios com Postgres
     database/    conexão (pg-promise) e configuração
@@ -143,7 +159,7 @@ test/
   unit/          domínio, casos de uso e camada HTTP, com dublês em memória
   integration/   repositórios e API de ponta a ponta no banco mealify_test
   contract/      contratos que os repositórios em memória e os de banco precisam cumprir
-  doubles/       repositórios em memória e relógio fixo
+  doubles/       repositórios em memória, relógio fixo, hasher e tokens falsos
 ```
 
 Os mesmos testes de contrato rodam contra o repositório em memória e o de Postgres. Assim, o dublê usado nos testes unitários se comporta igual ao repositório real.

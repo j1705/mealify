@@ -13,10 +13,10 @@ export async function startServer(
   env: Environment,
   connectToDatabase: ConnectToDatabase = connectToPostgres,
 ): Promise<RunningServer> {
-  const { port, corsOrigin } = readServerConfig(env);
+  const { port, corsOrigin, secureCookies } = readServerConfig(env);
   const connection = connectToDatabase(readDatabaseConfig(env));
   try {
-    const server = await buildApp(connection, corsOrigin).listen(port);
+    const server = await buildApp(connection, { corsOrigin, secureCookies }).listen(port);
     return {
       port: server.port,
       close: async () => {

@@ -1,5 +1,5 @@
 import { ValidationError } from "../../../src/domain/error/DomainError";
-import { ExpressAdapter, RunningServer } from "../../../src/infra/http/HttpServer";
+import { ExpressAdapter, HttpResponse, RunningServer } from "../../../src/infra/http/HttpServer";
 import { startTestApi, TestApi } from "./testApi";
 
 describe("HTTP server behaviour on the real app", () => {
@@ -75,6 +75,24 @@ describe("ExpressAdapter error mapping", () => {
     });
     adapter.register("post", "/created", async () => ({ ok: true }), 201);
     adapter.register("get", "/echo-query", async ({ query }) => query);
+    adapter.register("get", "/echo-cookies", async ({ cookies }) => cookies);
+    adapter.register(
+      "post",
+      "/set-cookie",
+      async () =>
+        new HttpResponse({ ok: true }, [
+          {
+            name: "flavor",
+            value: "oat meal",
+            maxAgeSeconds: 60,
+            httpOnly: true,
+            secure: true,
+            sameSite: "lax",
+            path: "/",
+          },
+        ]),
+    );
+    adapter.register("post", "/no-content", async () => undefined, 204);
     server = await adapter.listen(0);
   });
 
@@ -106,6 +124,36 @@ describe("ExpressAdapter error mapping", () => {
     const response = await get("/echo-query?limit=500&limit=10");
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ message: "Repeated query parameter: limit" });
+  });
+
+  test("Request cookies reach the route", async () => {
+    const response = await fetch(`http://localhost:${server.port}/echo-cookies`, {
+      headers: { Cookie: "flavor=oat; size=large" },
+    });
+    expect(await response.json()).toEqual({ flavor: "oat", size: "large" });
+  });
+
+  test("A route without request cookies receives none", async () => {
+    const response = await get("/echo-cookies");
+    expect(await response.json()).toEqual({});
+  });
+
+  test("A route can answer cookies along with its body", async () => {
+    const response = await fetch(`http://localhost:${server.port}/set-cookie`, { method: "POST" });
+    expect(await response.json()).toEqual({ ok: true });
+    const cookie = response.headers.get("set-cookie") ?? "";
+    expect(cookie).toMatch(/^flavor=oat%20meal; /);
+    expect(cookie).toContain("Max-Age=60");
+    expect(cookie).toContain("Path=/");
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("Secure");
+    expect(cookie).toContain("SameSite=Lax");
+  });
+
+  test("A 204 route answers without a body", async () => {
+    const response = await fetch(`http://localhost:${server.port}/no-content`, { method: "POST" });
+    expect(response.status).toBe(204);
+    expect(await response.text()).toBe("");
   });
 
   test("Routes answer the status code they were registered with", async () => {

@@ -29,11 +29,22 @@ export function optionalText(env: Environment, name: string, defaultValue: strin
   return env[name] || defaultValue;
 }
 
+export function optionalBoolean(env: Environment, name: string, defaultValue: boolean): boolean {
+  const value = env[name];
+  if (!value) return defaultValue;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw invalid(name);
+}
+
 function parsePort(value: string, name: string): number {
   const port = Number(value);
-  if (!DECIMAL_DIGITS.test(value) || port < MIN_PORT || port > MAX_PORT)
-    throw new Error(`Invalid environment variable: ${name}`);
+  if (!DECIMAL_DIGITS.test(value) || port < MIN_PORT || port > MAX_PORT) throw invalid(name);
   return port;
+}
+
+function invalid(name: string) {
+  return new Error(`Invalid environment variable: ${name}`);
 }
 
 function missing(name: string) {

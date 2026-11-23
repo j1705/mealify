@@ -2,6 +2,7 @@ import express, { Express, NextFunction, Request, Response } from "express";
 import { Server } from "node:http";
 import { AddressInfo } from "node:net";
 import BadRequestError from "./BadRequestError";
+import { parseCookies } from "./cookies";
 import { corsMiddleware } from "./corsMiddleware";
 import { DEFAULT_CORS_ORIGIN } from "./ServerConfig";
 import { respondWithError } from "./respondWithError";
@@ -9,11 +10,32 @@ import { respondWithError } from "./respondWithError";
 export type HttpMethod = "get" | "post" | "put" | "delete";
 export type HttpParams = Record<string, string>;
 export type HttpQuery = Record<string, string>;
+export type HttpCookies = Record<string, string>;
 export type HttpRequest = {
   params: HttpParams;
   body: unknown;
   query: HttpQuery;
+  cookies: HttpCookies;
 };
+
+export type HttpCookie = {
+  name: string;
+  value: string;
+  maxAgeSeconds: number;
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: "lax" | "strict";
+  path: string;
+};
+
+export class HttpResponse {
+  constructor(
+    readonly body: unknown,
+    readonly cookies: HttpCookie[] = [],
+  ) {}
+}
+
+const MS_PER_SECOND = 1000;
 export type HttpCallback = (request: HttpRequest) => Promise<unknown>;
 
 export type RunningServer = {
@@ -44,8 +66,11 @@ export class ExpressAdapter implements HttpServer {
           params: req.params as HttpParams,
           body: req.body,
           query: requireSingleValuedQuery(req.query),
+          cookies: parseCookies(req.headers.cookie),
         });
-        res.status(statusCode).json(output);
+        const response = output instanceof HttpResponse ? output : new HttpResponse(output);
+        for (const cookie of response.cookies) setCookie(res, cookie);
+        res.status(statusCode).json(response.body);
       } catch (error) {
         respondWithError(res, error);
       }
@@ -87,6 +112,10 @@ function handleErrorRaisedBeforeAnyRoute(
   _next: NextFunction,
 ) {
   respondWithError(res, error);
+}
+
+function setCookie(res: Response, { name, value, maxAgeSeconds, ...attributes }: HttpCookie) {
+  res.cookie(name, value, { ...attributes, maxAge: maxAgeSeconds * MS_PER_SECOND });
 }
 
 function requireSingleValuedQuery(query: Request["query"]): HttpQuery {
