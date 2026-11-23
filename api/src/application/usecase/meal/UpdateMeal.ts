@@ -16,10 +16,11 @@ export default class UpdateMealUseCase {
   ) {}
 
   async execute(
+    userId: number,
     mealId: number,
     { name, description, date, items }: MealInput,
   ): Promise<MealMutationOutput> {
-    const existingMeal = await this.mealRepository.getMealById(mealId);
+    const existingMeal = await this.mealRepository.getMealById(userId, mealId);
     if (!existingMeal) throw new MealNotFoundError();
 
     const mealItems = await buildMealItems(this.itemReader, items);

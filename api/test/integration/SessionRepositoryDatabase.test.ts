@@ -4,15 +4,7 @@ import { readDatabaseConfig } from "../../src/infra/database/DatabaseConfig";
 import { PgPromiseAdapter } from "../../src/infra/database/DatabaseConnection";
 import SessionRepositoryDatabase from "../../src/infra/repositoryDatabase/session/SessionRepositoryDatabase";
 import { describeSessionRepositoryContract } from "../contract/sessionRepositoryContract";
-
-async function insertUser(connection: PgPromiseAdapter): Promise<number> {
-  const email = `session${Date.now()}${Math.random().toString(36).slice(2, 6)}@example.com`;
-  const [user] = await connection.query<{ id: number }>(
-    `insert into users (email, password_hash) values ($1, 'hash') returning id`,
-    [email],
-  );
-  return user!.id;
-}
+import { deleteTestUsers, insertTestUser } from "./testUsers";
 
 describe("SessionRepositoryDatabase", () => {
   describeSessionRepositoryContract(async () => {
@@ -21,12 +13,12 @@ describe("SessionRepositoryDatabase", () => {
     return {
       repository: new SessionRepositoryDatabase(connection),
       async createUser() {
-        const userId = await insertUser(connection);
+        const userId = await insertTestUser(connection);
         userIds.push(userId);
         return userId;
       },
       async dispose() {
-        await connection.query(`delete from users where id = any($1)`, [userIds]);
+        await deleteTestUsers(connection, userIds);
         await connection.close();
       },
     };
@@ -36,7 +28,7 @@ describe("SessionRepositoryDatabase", () => {
     const connection = new PgPromiseAdapter(readDatabaseConfig());
     try {
       const repository = new SessionRepositoryDatabase(connection);
-      const userId = await insertUser(connection);
+      const userId = await insertTestUser(connection);
       const session = Session.open(
         { userId, tokenHash: randomBytes(32).toString("hex") },
         new Date(),

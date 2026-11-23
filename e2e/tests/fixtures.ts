@@ -71,13 +71,42 @@ class TestData {
   }
 }
 
-export const test = base.extend<{ data: TestData }>({
-  data: async ({ playwright }, use) => {
-    const api = await playwright.request.newContext({ baseURL: API_URL });
+export const PASSWORD = "correct horse battery";
+
+export function uniqueEmail(label = "e2e") {
+  return `${label}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}@example.com`;
+}
+
+export async function registerThrough(api: APIRequestContext, email = uniqueEmail()) {
+  const response = await api.post("/auth/register", { data: { email, password: PASSWORD } });
+  expect(response.status(), await response.text()).toBe(201);
+  return email;
+}
+
+type Fixtures = {
+  loggedIn: boolean;
+  api: APIRequestContext;
+  data: TestData;
+};
+
+export const test = base.extend<Fixtures>({
+  loggedIn: [true, { option: true }],
+  api: [
+    async ({ playwright, context, loggedIn }, use) => {
+      const api = await playwright.request.newContext({ baseURL: API_URL });
+      if (loggedIn) {
+        await registerThrough(api);
+        await context.addCookies((await api.storageState()).cookies);
+      }
+      await use(api);
+      await api.dispose();
+    },
+    { auto: true },
+  ],
+  data: async ({ api }, use) => {
     const data = new TestData(api);
     await use(data);
     await data.cleanup();
-    await api.dispose();
   },
 });
 

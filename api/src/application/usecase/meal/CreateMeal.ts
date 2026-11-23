@@ -17,9 +17,15 @@ export default class CreateMealUseCase {
     readonly clock: Clock,
   ) {}
 
-  async execute({ name, description, date, items }: MealInput): Promise<MealMutationOutput> {
+  async execute(
+    userId: number,
+    { name, description, date, items }: MealInput,
+  ): Promise<MealMutationOutput> {
     const mealItems = await buildMealItems(this.itemReader, items);
-    const meal = Meal.create({ name, description, date, items: mealItems }, this.clock.now());
+    const meal = Meal.create(
+      { userId, name, description, date, items: mealItems },
+      this.clock.now(),
+    );
     const { mealId } = await this.mealRepository.saveMeal(meal);
 
     return {

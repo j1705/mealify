@@ -3,6 +3,8 @@ import { describeMealRepositoryContract } from "../../contract/mealRepositoryCon
 import MealRepositoryMemory from "../../doubles/MealRepositoryMemory";
 
 describe("MealRepositoryMemory", () => {
+  let lastUserId = 0;
+
   describeMealRepositoryContract(async () => ({
     repository: new MealRepositoryMemory(),
     persistedItem: new Item({
@@ -15,6 +17,7 @@ describe("MealRepositoryMemory", () => {
       fat: 0.3,
       createdAt: new Date("2026-11-01T00:00:00Z"),
     }),
+    createUser: async () => ++lastUserId,
     dispose: async () => {},
   }));
 });

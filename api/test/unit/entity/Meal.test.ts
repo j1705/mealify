@@ -3,6 +3,8 @@ import Meal, { MealProps } from "../../../src/domain/entity/Meal";
 import MealItem from "../../../src/domain/entity/MealItem";
 import { ValidationError } from "../../../src/domain/error/DomainError";
 
+const OWNER_ID = 7;
+
 describe("Meal", () => {
   const date = new Date("2026-08-18T12:00:00.000Z");
   const rice = new Item({
@@ -27,6 +29,7 @@ describe("Meal", () => {
   });
   const lunch: MealProps = {
     id: 1,
+    userId: OWNER_ID,
     name: "Lunch",
     description: "Grilled chicken with rice",
     items: [MealItem.create(rice, 150)],
@@ -42,6 +45,7 @@ describe("Meal", () => {
     const meal = new Meal(lunch);
 
     expect(meal.getId()).toBe(1);
+    expect(meal.getUserId()).toBe(OWNER_ID);
     expect(meal.getName()).toBe("Lunch");
     expect(meal.getDescription()).toBe("Grilled chicken with rice");
     expect(meal.getItems()).toHaveLength(1);
@@ -59,7 +63,10 @@ describe("Meal", () => {
 
   test.each([undefined, ""])("Should store a description given as %p as null", (description) => {
     const items = [MealItem.create(rice, 100)];
-    const meal = Meal.create({ date: "2026-11-06", name: "Lunch", description, items }, new Date());
+    const meal = Meal.create(
+      { userId: OWNER_ID, date: "2026-11-06", name: "Lunch", description, items },
+      new Date(),
+    );
 
     expect(meal.getDescription()).toBeNull();
   });
@@ -90,7 +97,10 @@ describe("Meal", () => {
     const createdAt = new Date("2026-11-06T12:00:00.000Z");
     const items = [MealItem.create(rice, 100)];
 
-    const meal = Meal.create({ date: "2026-11-06", name: "Lunch", items }, createdAt);
+    const meal = Meal.create(
+      { userId: OWNER_ID, date: "2026-11-06", name: "Lunch", items },
+      createdAt,
+    );
 
     expect(meal.getCreatedAt()).toBe(createdAt);
   });
@@ -98,6 +108,7 @@ describe("Meal", () => {
   test("Should create a new meal without id, summing nutrients of its items", () => {
     const meal = Meal.create(
       {
+        userId: OWNER_ID,
         date: "2026-11-06",
         name: "Lunch",
         description: null,
@@ -107,6 +118,7 @@ describe("Meal", () => {
     );
 
     expect(meal.getId()).toBeUndefined();
+    expect(meal.getUserId()).toBe(OWNER_ID);
     expect(meal.getCalories()).toBeCloseTo(195 + 140);
     expect(meal.getMacronutrients().carbohydrate).toBeCloseTo(42 + 1.2);
     expect(meal.getMacronutrients().protein).toBeCloseTo(4.05 + 12);
@@ -128,11 +140,14 @@ describe("Meal", () => {
 
   test("Should throw if meal is created without items", () => {
     expect(() =>
-      Meal.create({ date: "2026-11-06", name: "Lunch", description: null, items: [] }, new Date()),
+      Meal.create(
+        { userId: OWNER_ID, date: "2026-11-06", name: "Lunch", description: null, items: [] },
+        new Date(),
+      ),
     ).toThrow("Meal must have at least one item");
   });
 
-  test("Should update a persisted meal recalculating totals and keeping id and createdAt", () => {
+  test("Should update a persisted meal recalculating totals and keeping id, owner and createdAt", () => {
     const updated = new Meal(lunch).update({
       date: "2026-11-06",
       name: "Big lunch",
@@ -141,6 +156,7 @@ describe("Meal", () => {
     });
 
     expect(updated.getId()).toBe(1);
+    expect(updated.getUserId()).toBe(OWNER_ID);
     expect(updated.getDate()).toBe("2026-11-06");
     expect(updated.getCreatedAt()).toBe(date);
     expect(updated.getName()).toBe("Big lunch");
@@ -159,6 +175,7 @@ describe("Meal", () => {
   test("Should throw if a meal that was never persisted is updated", () => {
     const meal = Meal.create(
       {
+        userId: OWNER_ID,
         date: "2026-11-06",
         name: "Lunch",
         description: null,

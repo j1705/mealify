@@ -3,8 +3,8 @@ import ItemRepository from "../../repository/ItemRepository";
 export default class GetMostUsedItemsUseCase {
   constructor(readonly itemRepository: ItemRepository) {}
 
-  async execute(limit: number): Promise<{ data: OutputMostUsedItem[] }> {
-    const ranking = await this.itemRepository.getMostUsedItems(limit);
+  async execute(userId: number, limit: number): Promise<{ data: OutputMostUsedItem[] }> {
+    const ranking = await this.itemRepository.getMostUsedItems(userId, limit);
     return {
       data: ranking.map(({ item, mealCount }) => ({
         id: item.getId()!,

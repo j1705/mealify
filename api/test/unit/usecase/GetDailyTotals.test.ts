@@ -4,8 +4,11 @@ import MealRepositoryMemory from "../../doubles/MealRepositoryMemory";
 import FixedClock from "../../doubles/FixedClock";
 import { createItemReaderWithFood } from "./mealFixtures";
 
+const USER_ID = 1;
+const OTHER_USER_ID = 2;
+
 describe("GetDailyTotalsUseCase", () => {
-  test("Should answer the day's meal count and nutrient totals", async () => {
+  test("Should answer the day's meal count and nutrient totals of the user", async () => {
     const mealRepository = new MealRepositoryMemory();
     const { itemReader, riceId, eggId } = createItemReaderWithFood();
     const createMeal = new CreateMealUseCase(
@@ -13,23 +16,28 @@ describe("GetDailyTotalsUseCase", () => {
       itemReader,
       new FixedClock(new Date()),
     );
-    await createMeal.execute({
+    await createMeal.execute(USER_ID, {
       date: "2026-11-22",
       name: "Lunch",
       items: [{ itemId: riceId, quantity: 100 }],
     });
-    await createMeal.execute({
+    await createMeal.execute(USER_ID, {
       date: "2026-11-22",
       name: "Dinner",
       items: [{ itemId: eggId, quantity: 2 }],
     });
-    await createMeal.execute({
+    await createMeal.execute(OTHER_USER_ID, {
+      date: "2026-11-22",
+      name: "Someone else's lunch",
+      items: [{ itemId: riceId, quantity: 500 }],
+    });
+    await createMeal.execute(USER_ID, {
       date: "2026-11-21",
       name: "Yesterday",
       items: [{ itemId: eggId, quantity: 1 }],
     });
 
-    const output = await new GetDailyTotalsUseCase(mealRepository).execute("2026-11-22");
+    const output = await new GetDailyTotalsUseCase(mealRepository).execute(USER_ID, "2026-11-22");
 
     expect(output).toMatchObject({ date: "2026-11-22", mealCount: 2 });
     expect(output.calories).toBeCloseTo(130 + 140);

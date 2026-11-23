@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./components/auth/AuthProvider";
+import RequireAuth from "./components/auth/RequireAuth";
 import AppLayout from "./components/layout/AppLayout";
 import { ToastProvider } from "./components/ui/ToastProvider";
 import HomePage from "./pages/HomePage";
@@ -20,15 +21,17 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/items" element={<ItemsPage />} />
-            <Route path="/items/new" element={<ItemCreatePage />} />
-            <Route path="/items/:itemId/edit" element={<ItemEditPage />} />
-            <Route path="/meals" element={<MealsPage />} />
-            <Route path="/meals/new" element={<MealCreatePage />} />
-            <Route path="/meals/:mealId" element={<MealDetailsPage />} />
-            <Route path="/meals/:mealId/edit" element={<MealEditPage />} />
+          <Route element={<RequireAuth />}>
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/items" element={<ItemsPage />} />
+              <Route path="/items/new" element={<ItemCreatePage />} />
+              <Route path="/items/:itemId/edit" element={<ItemEditPage />} />
+              <Route path="/meals" element={<MealsPage />} />
+              <Route path="/meals/new" element={<MealCreatePage />} />
+              <Route path="/meals/:mealId" element={<MealDetailsPage />} />
+              <Route path="/meals/:mealId/edit" element={<MealEditPage />} />
+            </Route>
           </Route>
         </Routes>
       </AuthProvider>

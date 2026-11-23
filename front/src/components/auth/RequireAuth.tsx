@@ -3,7 +3,7 @@ import { useAuth } from "./authContext";
 import styles from "./RequireAuth.module.css";
 
 export default function RequireAuth() {
-  const { status } = useAuth();
+  const { status, loggedOut } = useAuth();
   const { pathname, search } = useLocation();
 
   if (status === "loading") {
@@ -15,6 +15,7 @@ export default function RequireAuth() {
   }
 
   if (status === "anonymous") {
+    if (loggedOut) return <Navigate to="/login" replace />;
     const next = new URLSearchParams({ next: pathname + search });
     return <Navigate to={`/login?${next}`} replace />;
   }

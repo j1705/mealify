@@ -11,11 +11,13 @@ import HandleId from "../http/HandleId";
 import HandlePagination from "../http/HandlePagination";
 import HandleSearch from "../http/HandleSearch";
 import HttpServer from "../http/HttpServer";
+import RequestAuthenticator from "../http/RequestAuthenticator";
 import { isResourceId } from "../http/resourceId";
 
 export default class MealController {
   constructor(
     readonly httpServer: HttpServer,
+    readonly authenticator: RequestAuthenticator,
     readonly createMeal: CreateMealUseCase,
     readonly getMeals: GetMealsUseCase,
     readonly getMeal: GetMealUseCase,
@@ -26,40 +28,60 @@ export default class MealController {
     httpServer.register(
       "post",
       "/meals",
-      async ({ body }) => {
+      authenticator.guard(async ({ body }, userId) => {
         validateItems((body as { items?: unknown } | null)?.items);
-        return createMeal.execute(body as MealInput);
-      },
+        return createMeal.execute(userId, body as MealInput);
+      }),
       201,
     );
-    httpServer.register("get", "/meals", async ({ query }) => {
-      const pagination = new HandlePagination(query);
-      const search = new HandleSearch(query.search);
-      const date = new HandleDateFilter(query.date);
-      return getMeals.execute({
-        ...pagination.getValue(),
-        search: search.getValue(),
-        date: date.getValue(),
-      });
-    });
-    httpServer.register("get", "/meals/totals", async ({ query }) => {
-      const date = new HandleDateFilter(query.date).getValue();
-      if (date === undefined) throw new BadRequestError("Date is required");
-      return getDailyTotals.execute(date);
-    });
-    httpServer.register("get", "/meals/:mealId", async ({ params }) => {
-      const mealId = new HandleId(params.mealId);
-      return getMeal.execute(mealId.getValue());
-    });
-    httpServer.register("put", "/meals/:mealId", async ({ params, body }) => {
-      const mealId = new HandleId(params.mealId);
-      validateItems((body as { items?: unknown } | null)?.items);
-      return updateMeal.execute(mealId.getValue(), body as MealInput);
-    });
-    httpServer.register("delete", "/meals/:mealId", async ({ params }) => {
-      const mealId = new HandleId(params.mealId);
-      return deleteMeal.execute(mealId.getValue());
-    });
+    httpServer.register(
+      "get",
+      "/meals",
+      authenticator.guard(async ({ query }, userId) => {
+        const pagination = new HandlePagination(query);
+        const search = new HandleSearch(query.search);
+        const date = new HandleDateFilter(query.date);
+        return getMeals.execute(userId, {
+          ...pagination.getValue(),
+          search: search.getValue(),
+          date: date.getValue(),
+        });
+      }),
+    );
+    httpServer.register(
+      "get",
+      "/meals/totals",
+      authenticator.guard(async ({ query }, userId) => {
+        const date = new HandleDateFilter(query.date).getValue();
+        if (date === undefined) throw new BadRequestError("Date is required");
+        return getDailyTotals.execute(userId, date);
+      }),
+    );
+    httpServer.register(
+      "get",
+      "/meals/:mealId",
+      authenticator.guard(async ({ params }, userId) => {
+        const mealId = new HandleId(params.mealId);
+        return getMeal.execute(userId, mealId.getValue());
+      }),
+    );
+    httpServer.register(
+      "put",
+      "/meals/:mealId",
+      authenticator.guard(async ({ params, body }, userId) => {
+        const mealId = new HandleId(params.mealId);
+        validateItems((body as { items?: unknown } | null)?.items);
+        return updateMeal.execute(userId, mealId.getValue(), body as MealInput);
+      }),
+    );
+    httpServer.register(
+      "delete",
+      "/meals/:mealId",
+      authenticator.guard(async ({ params }, userId) => {
+        const mealId = new HandleId(params.mealId);
+        return deleteMeal.execute(userId, mealId.getValue());
+      }),
+    );
   }
 }
 

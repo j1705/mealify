@@ -19,8 +19,12 @@ export async function startTestApi() {
   const mealIds: number[] = [];
   const userIds: number[] = [];
 
+  let defaultSessionCookie = "";
+
   async function send(method: string, path: string, init: RequestInit = {}): Promise<ApiResponse> {
-    const response = await fetch(baseUrl + path, { method, ...init });
+    const headers = new Headers(init.headers);
+    if (!headers.has("Cookie")) headers.set("Cookie", defaultSessionCookie);
+    const response = await fetch(baseUrl + path, { method, ...init, headers });
     const text = await response.text();
     const isJson = response.headers.get("content-type")?.includes("application/json");
     return {
@@ -30,14 +34,33 @@ export async function startTestApi() {
     };
   }
 
+  const request = (method: string, path: string, body?: unknown, cookie?: string) =>
+    send(method, path, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(cookie === undefined ? {} : { Cookie: cookie }),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+
+  async function registerUser(): Promise<{ userId: number; cookie: string }> {
+    const response = await request(
+      "POST",
+      "/auth/register",
+      { email: uniqueEmail(), password: TEST_PASSWORD },
+      NO_SESSION,
+    );
+    userIds.push(response.body.userId);
+    return { userId: response.body.userId, cookie: sessionCookieOf(response)! };
+  }
+
+  defaultSessionCookie = (await registerUser()).cookie;
+
   return {
     connection,
     send,
-    request: (method: string, path: string, body?: unknown) =>
-      send(method, path, {
-        headers: { "Content-Type": "application/json" },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      }),
+    request,
+    registerUser,
     trackItem: (id: number) => itemIds.push(id),
     trackMeal: (id: number) => mealIds.push(id),
     trackUser: (id: number) => userIds.push(id),
@@ -56,6 +79,10 @@ export type TestApi = Awaited<ReturnType<typeof startTestApi>>;
 export const uniqueSuffix = () => `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
 export const uniqueEmail = () => `user-${uniqueSuffix()}@example.com`;
+
+export const NO_SESSION = "";
+
+const TEST_PASSWORD = "correct horse battery";
 
 export function sessionCookieOf(response: ApiResponse): string | undefined {
   return response.headers

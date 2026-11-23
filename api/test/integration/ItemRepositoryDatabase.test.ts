@@ -4,18 +4,25 @@ import { readDatabaseConfig } from "../../src/infra/database/DatabaseConfig";
 import DatabaseConnection, { PgPromiseAdapter } from "../../src/infra/database/DatabaseConnection";
 import ItemRepositoryDatabase from "../../src/infra/repositoryDatabase/item/ItemRepositoryDatabase";
 import { describeItemRepositoryContract } from "../contract/itemRepositoryContract";
+import { deleteTestUsers, insertTestUser } from "./testUsers";
 
 describe("ItemRepositoryDatabase", () => {
   describeItemRepositoryContract(async () => {
     const connection = new PgPromiseAdapter(readDatabaseConfig());
     const mealIdsUsingItems: number[] = [];
+    const userIds: number[] = [];
     return {
       repository: new ItemRepositoryDatabase(connection),
-      async markAsUsedInMeal(itemId) {
+      async createUser() {
+        const userId = await insertTestUser(connection);
+        userIds.push(userId);
+        return userId;
+      },
+      async markAsUsedInMeal(itemId, userId) {
         const [meal] = await connection.query<{ id: number }>(
-          `insert into meals (name, date, calories, protein, carbohydrate, fat)
-           values ('Contract meal', current_date, 0, 0, 0, 0) returning id`,
-          [],
+          `insert into meals (user_id, name, date, calories, protein, carbohydrate, fat)
+           values ($1, 'Contract meal', current_date, 0, 0, 0, 0) returning id`,
+          [userId],
         );
         mealIdsUsingItems.push(meal!.id);
         await connection.query(
@@ -26,6 +33,7 @@ describe("ItemRepositoryDatabase", () => {
       },
       async dispose(createdItemIds) {
         await connection.query(`delete from meals where id = any($1)`, [mealIdsUsingItems]);
+        await deleteTestUsers(connection, userIds);
         await connection.query(`delete from items where id = any($1)`, [createdItemIds]);
         await connection.close();
       },

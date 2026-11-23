@@ -9,6 +9,7 @@ import MealItem from "./MealItem";
 
 export type MealProps = Nutrients & {
   id?: number;
+  userId: number;
   name: string;
   description: string | null;
   date: string;
@@ -16,12 +17,15 @@ export type MealProps = Nutrients & {
   createdAt: Date;
 };
 
-export type CreateMealProps = Pick<MealProps, "name" | "date" | "items"> & {
+export type MealChanges = Pick<MealProps, "name" | "date" | "items"> & {
   description?: string | null | undefined;
 };
 
+export type CreateMealProps = MealChanges & Pick<MealProps, "userId">;
+
 export default class Meal {
   private id: number | undefined;
+  private userId: number;
   private name: Name;
   private description: Description | null;
   private date: MealDate;
@@ -32,6 +36,7 @@ export default class Meal {
 
   constructor({
     id,
+    userId,
     name,
     description,
     date,
@@ -43,6 +48,7 @@ export default class Meal {
     createdAt,
   }: MealProps) {
     this.id = id;
+    this.userId = userId;
     this.name = new Name(name);
     this.description = description ? new Description(description) : null;
     this.date = new MealDate(date);
@@ -56,9 +62,9 @@ export default class Meal {
     return Meal.build({ ...props, createdAt });
   }
 
-  update(props: CreateMealProps) {
+  update(changes: MealChanges) {
     if (this.id === undefined) throw new ValidationError("Meal must be persisted before update");
-    return Meal.build({ ...props, id: this.id, createdAt: this.createdAt });
+    return Meal.build({ ...changes, id: this.id, userId: this.userId, createdAt: this.createdAt });
   }
 
   private static build({
@@ -82,6 +88,10 @@ export default class Meal {
 
   getId() {
     return this.id;
+  }
+
+  getUserId() {
+    return this.userId;
   }
 
   getName() {

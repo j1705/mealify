@@ -5,6 +5,9 @@ import { ItemNotFoundError, MealNotFoundError } from "../../../src/domain/error/
 import MealRepositoryMemory from "../../doubles/MealRepositoryMemory";
 import { createItemReaderWithFood } from "./mealFixtures";
 
+const USER_ID = 1;
+const OTHER_USER_ID = 2;
+
 describe("UpdateMealUseCase", () => {
   let mealRepository: MealRepositoryMemory;
   let createMeal: CreateMealUseCase;
@@ -19,7 +22,7 @@ describe("UpdateMealUseCase", () => {
     ({ riceId, eggId } = fixtures);
     createMeal = new CreateMealUseCase(mealRepository, fixtures.itemReader, new SystemClock());
     updateMeal = new UpdateMealUseCase(mealRepository, fixtures.itemReader);
-    ({ mealId: lunchId } = await createMeal.execute({
+    ({ mealId: lunchId } = await createMeal.execute(USER_ID, {
       date: "2026-11-06",
       name: "Lunch",
       items: [{ itemId: riceId, quantity: 100 }],
@@ -27,7 +30,7 @@ describe("UpdateMealUseCase", () => {
   });
 
   test("Should replace the items and recalculate the totals", async () => {
-    const output = await updateMeal.execute(lunchId, {
+    const output = await updateMeal.execute(USER_ID, lunchId, {
       date: "2026-11-06",
       name: "Lunch",
       description: "Rice and eggs",
@@ -46,34 +49,34 @@ describe("UpdateMealUseCase", () => {
     expect(output.items).toHaveLength(2);
     expect(output.items[1]).toMatchObject({ itemId: eggId, quantity: 2, calories: 140 });
 
-    const saved = await mealRepository.getMealById(lunchId);
+    const saved = await mealRepository.getMealById(USER_ID, lunchId);
     expect(saved?.getDescription()).toBe("Rice and eggs");
     expect(saved?.getItems()).toHaveLength(2);
   });
 
   test("Should change the meal date and keep the original creation timestamp", async () => {
-    const before = (await mealRepository.getMealById(lunchId))!.getCreatedAt();
+    const before = (await mealRepository.getMealById(USER_ID, lunchId))!.getCreatedAt();
 
-    await updateMeal.execute(lunchId, {
+    await updateMeal.execute(USER_ID, lunchId, {
       date: "2026-11-01",
       name: "Lunch",
       items: [{ itemId: eggId, quantity: 1 }],
     });
 
-    const saved = await mealRepository.getMealById(lunchId);
+    const saved = await mealRepository.getMealById(USER_ID, lunchId);
     expect(saved?.getDate()).toBe("2026-11-01");
     expect(saved?.getCreatedAt()).toBe(before);
   });
 
   test("Should allow using another meal's name", async () => {
-    await createMeal.execute({
+    await createMeal.execute(USER_ID, {
       date: "2026-11-06",
       name: "Dinner",
       items: [{ itemId: eggId, quantity: 1 }],
     });
 
     await expect(
-      updateMeal.execute(lunchId, {
+      updateMeal.execute(USER_ID, lunchId, {
         date: "2026-11-06",
         name: "Dinner",
         items: [{ itemId: riceId, quantity: 50 }],
@@ -83,7 +86,7 @@ describe("UpdateMealUseCase", () => {
 
   test("Should throw if the meal does not exist", async () => {
     await expect(
-      updateMeal.execute(999, {
+      updateMeal.execute(USER_ID, 999, {
         date: "2026-11-06",
         name: "Lunch",
         items: [{ itemId: riceId, quantity: 50 }],
@@ -93,12 +96,23 @@ describe("UpdateMealUseCase", () => {
 
   test("Should throw if an item does not exist and keep the meal unchanged", async () => {
     await expect(
-      updateMeal.execute(lunchId, {
+      updateMeal.execute(USER_ID, lunchId, {
         date: "2026-11-06",
         name: "Lunch",
         items: [{ itemId: 999, quantity: 50 }],
       }),
     ).rejects.toThrow(ItemNotFoundError);
-    expect((await mealRepository.getMealById(lunchId))?.getCalories()).toBeCloseTo(130);
+    expect((await mealRepository.getMealById(USER_ID, lunchId))?.getCalories()).toBeCloseTo(130);
+  });
+
+  test("Should not update a meal of another user", async () => {
+    await expect(
+      updateMeal.execute(OTHER_USER_ID, lunchId, {
+        date: "2026-11-06",
+        name: "Stolen",
+        items: [{ itemId: riceId, quantity: 100 }],
+      }),
+    ).rejects.toThrow(MealNotFoundError);
+    expect((await mealRepository.getMealById(USER_ID, lunchId))?.getName()).toBe("Lunch");
   });
 });

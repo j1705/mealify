@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import styles from "./Header.module.css";
 import { useAuth } from "../auth/authContext";
 import Button from "../ui/Button";
@@ -36,13 +36,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
 function AccountArea() {
   const auth = useAuth();
-  const navigate = useNavigate();
   const { showToast } = useToast();
 
   async function handleLogout() {
     try {
       await auth.logout();
-      navigate("/login");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Não foi possível sair", "error");
     }

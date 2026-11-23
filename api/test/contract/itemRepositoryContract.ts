@@ -10,7 +10,8 @@ import {
 
 export type ItemRepositoryHarness = {
   repository: ItemRepository;
-  markAsUsedInMeal(itemId: number): Promise<void>;
+  createUser(): Promise<number>;
+  markAsUsedInMeal(itemId: number, userId: number): Promise<void>;
   dispose(createdItemIds: number[]): Promise<void>;
 };
 
@@ -35,9 +36,14 @@ export function describeItemRepositoryContract(
 
     const nextCreatedAt = steppingCreationTimes();
 
+    let userId: number;
+    let otherUserId: number;
+
     beforeAll(async () => {
       harness = await createHarness();
       repository = harness.repository;
+      userId = await harness.createUser();
+      otherUserId = await harness.createUser();
     });
 
     afterAll(async () => {
@@ -160,7 +166,7 @@ export function describeItemRepositoryContract(
       const { itemId } = await save();
       expect(await repository.isUsedInMeals(itemId)).toBe(false);
 
-      await harness.markAsUsedInMeal(itemId);
+      await harness.markAsUsedInMeal(itemId, userId);
 
       expect(await repository.isUsedInMeals(itemId)).toBe(true);
     });
@@ -169,10 +175,10 @@ export function describeItemRepositoryContract(
       const { itemId: once } = await save();
       const { itemId: thrice } = await save();
       const { itemId: unused } = await save();
-      await harness.markAsUsedInMeal(once);
-      for (let meal = 0; meal < 3; meal++) await harness.markAsUsedInMeal(thrice);
+      await harness.markAsUsedInMeal(once, userId);
+      for (let meal = 0; meal < 3; meal++) await harness.markAsUsedInMeal(thrice, userId);
 
-      const ranking = await repository.getMostUsedItems(100);
+      const ranking = await repository.getMostUsedItems(userId, 100);
 
       const ours = ranking.filter(({ item }) => [once, thrice, unused].includes(item.getId()!));
       expect(ours.map(({ item, mealCount }) => [item.getId(), mealCount])).toEqual([
@@ -184,15 +190,36 @@ export function describeItemRepositoryContract(
     test("Should return at most the given number of most used items", async () => {
       const { itemId: first } = await save();
       const { itemId: second } = await save();
-      await harness.markAsUsedInMeal(first);
-      await harness.markAsUsedInMeal(second);
+      await harness.markAsUsedInMeal(first, userId);
+      await harness.markAsUsedInMeal(second, userId);
 
-      expect(await repository.getMostUsedItems(1)).toHaveLength(1);
+      expect(await repository.getMostUsedItems(userId, 1)).toHaveLength(1);
+    });
+
+    test("Should rank only the meals of the given user", async () => {
+      const { itemId: mine } = await save();
+      const { itemId: theirs } = await save();
+      await harness.markAsUsedInMeal(mine, userId);
+      for (let meal = 0; meal < 3; meal++) await harness.markAsUsedInMeal(theirs, otherUserId);
+      await harness.markAsUsedInMeal(mine, otherUserId);
+
+      const ranking = await repository.getMostUsedItems(userId, 100);
+
+      const ours = ranking.filter(({ item }) => [mine, theirs].includes(item.getId()!));
+      expect(ours.map(({ item, mealCount }) => [item.getId(), mealCount])).toEqual([[mine, 1]]);
+    });
+
+    test("Should tell that an item is used even when only another user's meal uses it", async () => {
+      const { itemId } = await save();
+
+      await harness.markAsUsedInMeal(itemId, otherUserId);
+
+      expect(await repository.isUsedInMeals(itemId)).toBe(true);
     });
 
     test("Should refuse to delete an item used in a meal and keep it", async () => {
       const { itemId } = await save();
-      await harness.markAsUsedInMeal(itemId);
+      await harness.markAsUsedInMeal(itemId, userId);
 
       await expect(repository.deleteItem(itemId)).rejects.toThrow(
         new ConflictError("Item is used in a meal"),

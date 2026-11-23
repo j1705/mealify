@@ -6,9 +6,9 @@ export type DailyTotals = Nutrients & { mealCount: number };
 
 export default interface MealRepository {
   saveMeal(meal: Meal): Promise<{ mealId: number }>;
-  getMealById(mealId: number): Promise<Meal | null>;
-  getMeals(query: MealListQuery): Promise<{ meals: Meal[]; total: number }>;
-  getDailyTotals(date: string): Promise<DailyTotals>;
+  getMealById(userId: number, mealId: number): Promise<Meal | null>;
+  getMeals(userId: number, query: MealListQuery): Promise<{ meals: Meal[]; total: number }>;
+  getDailyTotals(userId: number, date: string): Promise<DailyTotals>;
   updateMeal(meal: Meal): Promise<{ mealId: number }>;
-  deleteMeal(mealId: number): Promise<void>;
+  deleteMeal(userId: number, mealId: number): Promise<void>;
 }

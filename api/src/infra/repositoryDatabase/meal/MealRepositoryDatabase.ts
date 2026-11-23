@@ -9,6 +9,7 @@ import { containsPattern, nameMatchesFilter } from "../nameSearch";
 
 type MealRow = {
   id: number;
+  user_id: number;
   name: string;
   description: string | null;
   date: string;
@@ -60,8 +61,12 @@ export default class MealRepositoryDatabase implements MealRepository {
 
   async saveMeal(meal: Meal): Promise<{ mealId: number }> {
     const params = new QueryParams();
-    const values = { ...mealValues(meal), created_at: meal.getCreatedAt() };
-    const columns = [...MEAL_COLUMNS, "created_at"] as const;
+    const values = {
+      ...mealValues(meal),
+      user_id: meal.getUserId(),
+      created_at: meal.getCreatedAt(),
+    };
+    const columns = [...MEAL_COLUMNS, "user_id", "created_at"] as const;
     const placeholders = columns.map((column) => params.add(values[column]));
     const [row] = await this.connection.query<{ id: number }>(
       `with new_meal as (
@@ -85,7 +90,7 @@ export default class MealRepositoryDatabase implements MealRepository {
       `with updated_meal as (
          update meals
          set ${assignments.join(", ")}
-         where id = ${params.add(meal.getId())}
+         where id = ${params.add(meal.getId())} and user_id = ${params.add(meal.getUserId())}
          returning id
        ), old_items as (
          delete from meal_items where meal_id = (select id from updated_meal)
@@ -99,20 +104,19 @@ export default class MealRepositoryDatabase implements MealRepository {
     return { mealId: row.id };
   }
 
-  async getMealById(mealId: number): Promise<Meal | null> {
-    const [meal] = await this.findMeals(`where m.id = $1`, [mealId]);
+  async getMealById(userId: number, mealId: number): Promise<Meal | null> {
+    const [meal] = await this.findMeals(`where m.user_id = $1 and m.id = $2`, [userId, mealId]);
     return meal ?? null;
   }
 
-  async getMeals({
-    page,
-    limit,
-    ...filter
-  }: MealListQuery): Promise<{ meals: Meal[]; total: number }> {
+  async getMeals(
+    userId: number,
+    { page, limit, ...filter }: MealListQuery,
+  ): Promise<{ meals: Meal[]; total: number }> {
     const listParams = new QueryParams();
-    const listFilter = mealListFilter(filter, listParams);
+    const listFilter = mealListFilter(userId, filter, listParams);
     const countParams = new QueryParams();
-    const countFilter = mealListFilter(filter, countParams);
+    const countFilter = mealListFilter(userId, filter, countParams);
     const [meals, [count]] = await Promise.all([
       this.findMeals(
         `${listFilter} order by m.date desc, m.id desc
@@ -127,7 +131,7 @@ export default class MealRepositoryDatabase implements MealRepository {
     return { meals, total: count!.total };
   }
 
-  async getDailyTotals(date: string): Promise<DailyTotals> {
+  async getDailyTotals(userId: number, date: string): Promise<DailyTotals> {
     const [row] = await this.connection.query<Record<keyof DailyTotals, number>>(
       `select count(*)::int as "mealCount",
               coalesce(sum(calories), 0)::float8 as calories,
@@ -135,19 +139,22 @@ export default class MealRepositoryDatabase implements MealRepository {
               coalesce(sum(protein), 0)::float8 as protein,
               coalesce(sum(fat), 0)::float8 as fat
        from meals
-       where date = $1::date`,
-      [date],
+       where user_id = $1 and date = $2::date`,
+      [userId, date],
     );
     return row!;
   }
 
-  async deleteMeal(mealId: number): Promise<void> {
-    await this.connection.query(`delete from meals where id = $1`, [mealId]);
+  async deleteMeal(userId: number, mealId: number): Promise<void> {
+    await this.connection.query(`delete from meals where user_id = $1 and id = $2`, [
+      userId,
+      mealId,
+    ]);
   }
 
   private async findMeals(filter: string, params: unknown[]): Promise<Meal[]> {
     const rows = await this.connection.query<MealRow>(
-      `select m.id, m.name, m.description, m.date::text as date, m.calories, m.protein,
+      `select m.id, m.user_id, m.name, m.description, m.date::text as date, m.calories, m.protein,
               m.carbohydrate, m.fat, m.created_at
        from meals m ${filter}`,
       params,
@@ -168,11 +175,14 @@ export default class MealRepositoryDatabase implements MealRepository {
 }
 
 function mealListFilter(
+  userId: number,
   { search, date }: Omit<MealListQuery, "page" | "limit">,
   params: QueryParams,
 ): string {
+  const owner = params.add(userId);
   const day = params.add(date ?? null);
-  return `where ${nameMatchesFilter(params.add(containsPattern(search)))}
+  return `where m.user_id = ${owner}
+          and ${nameMatchesFilter(params.add(containsPattern(search)))}
           and (${day}::date is null or m.date = ${day}::date)`;
 }
 
@@ -221,6 +231,7 @@ function groupByMealId(itemRows: MealItemRow[]): Map<number, MealItemRow[]> {
 function toMeal(row: MealRow, itemRows: MealItemRow[]): Meal {
   return new Meal({
     id: row.id,
+    userId: row.user_id,
     name: row.name,
     description: row.description,
     date: row.date,

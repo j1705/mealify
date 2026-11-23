@@ -1,4 +1,5 @@
-import { expect, test } from "./fixtures";
+import { API_URL, APP_URL } from "../env";
+import { expect, PASSWORD, test, uniqueEmail } from "./fixtures";
 
 test.describe("Meals", () => {
   test("creates a meal through the select, fixing an invalid quantity", async ({ page, data }) => {
@@ -151,5 +152,23 @@ test.describe("Meals", () => {
 
     await expect(page.getByLabel(`Quantidade de ${target}`)).toHaveValue("100");
     await expect(page.getByText("Total da refeição").locator("..")).toContainText("240 kcal");
+  });
+
+  test("does not show a meal to another user", async ({ browser, data }) => {
+    const itemId = await data.createItem({ name: `Private rice ${data.suffix}`, unit: "g", calories: 130, protein: 2.5, carbohydrate: 28, fat: 0.5 });
+    const name = `Private lunch ${data.suffix}`;
+    const mealId = await data.createMeal({ name, date: "2026-03-10", items: [{ itemId, quantity: 100 }] });
+    const otherUser = await browser.newContext({ baseURL: APP_URL, locale: "pt-BR" });
+    const registration = await otherUser.request.post(`${API_URL}/auth/register`, { data: { email: uniqueEmail(), password: PASSWORD } });
+    expect(registration.status()).toBe(201);
+    const page = await otherUser.newPage();
+
+    await page.goto(`/meals/${mealId}`);
+    await expect(page.getByText("Refeição não encontrada.")).toBeVisible();
+
+    await page.goto("/meals");
+    await expect(page.getByRole("heading", { name: "Refeições" })).toBeVisible();
+    await expect(page.getByText(name)).toHaveCount(0);
+    await otherUser.close();
   });
 });

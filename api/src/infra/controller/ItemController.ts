@@ -11,12 +11,14 @@ import HandleLimit from "../http/HandleLimit";
 import HandlePagination from "../http/HandlePagination";
 import HandleSearch from "../http/HandleSearch";
 import HttpServer from "../http/HttpServer";
+import RequestAuthenticator from "../http/RequestAuthenticator";
 
 const MOST_USED_LIMITS = { defaultLimit: 5, maxLimit: 20 };
 
 export default class ItemController {
   constructor(
     readonly httpServer: HttpServer,
+    readonly authenticator: RequestAuthenticator,
     readonly createItem: CreateItemUseCase,
     readonly getItems: GetItemsUseCase,
     readonly getItem: GetItemUseCase,
@@ -27,34 +29,54 @@ export default class ItemController {
     httpServer.register(
       "post",
       "/items",
-      async ({ body }) => createItem.execute(body as ItemInput),
+      authenticator.guard(async ({ body }) => createItem.execute(body as ItemInput)),
       201,
     );
-    httpServer.register("get", "/items", async ({ query }) => {
-      const pagination = new HandlePagination(query);
-      const search = new HandleSearch(query.search);
-      const sort = new HandleItemSort(query);
-      return getItems.execute({
-        ...pagination.getValue(),
-        search: search.getValue(),
-        sort: sort.getValue(),
-      });
-    });
-    httpServer.register("get", "/items/most-used", async ({ query }) => {
-      const limit = new HandleLimit(query.limit, MOST_USED_LIMITS);
-      return getMostUsedItems.execute(limit.getValue());
-    });
-    httpServer.register("get", "/items/:itemId", async ({ params }) => {
-      const itemId = new HandleId(params.itemId);
-      return getItem.execute(itemId.getValue());
-    });
-    httpServer.register("put", "/items/:itemId", async ({ params, body }) => {
-      const itemId = new HandleId(params.itemId);
-      return updateItem.execute(itemId.getValue(), body as ItemInput);
-    });
-    httpServer.register("delete", "/items/:itemId", async ({ params }) => {
-      const itemId = new HandleId(params.itemId);
-      return deleteItem.execute(itemId.getValue());
-    });
+    httpServer.register(
+      "get",
+      "/items",
+      authenticator.guard(async ({ query }) => {
+        const pagination = new HandlePagination(query);
+        const search = new HandleSearch(query.search);
+        const sort = new HandleItemSort(query);
+        return getItems.execute({
+          ...pagination.getValue(),
+          search: search.getValue(),
+          sort: sort.getValue(),
+        });
+      }),
+    );
+    httpServer.register(
+      "get",
+      "/items/most-used",
+      authenticator.guard(async ({ query }, userId) => {
+        const limit = new HandleLimit(query.limit, MOST_USED_LIMITS);
+        return getMostUsedItems.execute(userId, limit.getValue());
+      }),
+    );
+    httpServer.register(
+      "get",
+      "/items/:itemId",
+      authenticator.guard(async ({ params }) => {
+        const itemId = new HandleId(params.itemId);
+        return getItem.execute(itemId.getValue());
+      }),
+    );
+    httpServer.register(
+      "put",
+      "/items/:itemId",
+      authenticator.guard(async ({ params, body }) => {
+        const itemId = new HandleId(params.itemId);
+        return updateItem.execute(itemId.getValue(), body as ItemInput);
+      }),
+    );
+    httpServer.register(
+      "delete",
+      "/items/:itemId",
+      authenticator.guard(async ({ params }) => {
+        const itemId = new HandleId(params.itemId);
+        return deleteItem.execute(itemId.getValue());
+      }),
+    );
   }
 }

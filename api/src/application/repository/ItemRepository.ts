@@ -11,7 +11,7 @@ export default interface ItemRepository extends ItemReader {
   saveItem(item: Item): Promise<{ itemId: number }>;
   getItems(query: ItemListQuery): Promise<{ items: Item[]; total: number }>;
   isUsedInMeals(itemId: number): Promise<boolean>;
-  getMostUsedItems(limit: number): Promise<ItemUsage[]>;
+  getMostUsedItems(userId: number, limit: number): Promise<ItemUsage[]>;
   updateItem(item: Item): Promise<{ itemId: number }>;
   deleteItem(itemId: number): Promise<void>;
 }

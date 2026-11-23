@@ -79,15 +79,16 @@ export default class ItemRepositoryDatabase implements ItemRepository {
     return row ? toItem(row) : null;
   }
 
-  async getMostUsedItems(limit: number): Promise<ItemUsage[]> {
+  async getMostUsedItems(userId: number, limit: number): Promise<ItemUsage[]> {
     const rows = await this.connection.query<ItemRow & { meal_count: number }>(
       `select i.*, count(distinct mi.meal_id)::int as meal_count
        from items i
        join meal_items mi on mi.item_id = i.id
+       where mi.meal_id in (select id from meals where user_id = $1)
        group by i.id
        order by meal_count desc, ${SORT_COLUMNS.name} asc, i.id desc
-       limit $1`,
-      [limit],
+       limit $2`,
+      [userId, limit],
     );
     return rows.map((row) => ({ item: toItem(row), mealCount: row.meal_count }));
   }

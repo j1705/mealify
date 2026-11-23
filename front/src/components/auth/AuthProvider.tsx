@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import * as authService from "../../services/authService";
+import { onUnauthorized } from "../../services/http";
 import type { Credentials, User } from "../../types/User";
 import { AuthContext, type AuthStatus } from "./authContext";
 
-type Session = { status: AuthStatus; user: User | null };
+type Session = { status: AuthStatus; user: User | null; loggedOut: boolean };
 
-const LOADING: Session = { status: "loading", user: null };
-const ANONYMOUS: Session = { status: "anonymous", user: null };
-const authenticated = (user: User): Session => ({ status: "authenticated", user });
+const LOADING: Session = { status: "loading", user: null, loggedOut: false };
+const ANONYMOUS: Session = { status: "anonymous", user: null, loggedOut: false };
+const LOGGED_OUT: Session = { ...ANONYMOUS, loggedOut: true };
+const authenticated = (user: User): Session => ({
+  status: "authenticated",
+  user,
+  loggedOut: false,
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session>(LOADING);
@@ -25,6 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => onUnauthorized(() => setSession(ANONYMOUS)), []);
+
   const login = useCallback(async (credentials: Credentials) => {
     setSession(authenticated(await authService.login(credentials)));
   }, []);
@@ -35,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await authService.logout();
-    setSession(ANONYMOUS);
+    setSession(LOGGED_OUT);
   }, []);
 
   const value = useMemo(
