@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { AuthProvider } from "../../../src/components/auth/AuthProvider";
 import { useAuth } from "../../../src/components/auth/authContext";
 import { getCurrentUser, login, logout, registerUser } from "../../../src/services/authService";
+import { request } from "../../../src/services/http";
 
 vi.mock("../../../src/services/authService");
 
@@ -142,6 +143,27 @@ describe("AuthProvider", () => {
     await act(async () => answerInitialCheck(null));
 
     expect(status()).toBe("authenticated");
+  });
+
+  test("becomes anonymous when a request finds the session gone", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue(ana);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ message: "Authentication required" }), { status: 401 }),
+        ),
+    );
+    renderProbe();
+    await waitFor(() => expect(status()).toBe("authenticated"));
+
+    await act(async () => {
+      await request("/meals", "Falhou").catch(() => {});
+    });
+
+    expect(status()).toBe("anonymous");
+    vi.unstubAllGlobals();
   });
 
   test("refuses to be used outside the provider", () => {

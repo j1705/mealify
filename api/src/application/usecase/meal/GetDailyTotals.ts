@@ -6,9 +6,9 @@ export type DailyTotalsOutput = NutrientsOutput & { date: string; mealCount: num
 export default class GetDailyTotalsUseCase {
   constructor(readonly mealRepository: MealRepository) {}
 
-  async execute(date: string): Promise<DailyTotalsOutput> {
+  async execute(userId: number, date: string): Promise<DailyTotalsOutput> {
     const { mealCount, calories, carbohydrate, protein, fat } =
-      await this.mealRepository.getDailyTotals(date);
+      await this.mealRepository.getDailyTotals(userId, date);
     return { date, mealCount, calories, macronutrients: { carbohydrate, protein, fat } };
   }
 }

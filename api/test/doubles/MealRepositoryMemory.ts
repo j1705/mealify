@@ -13,26 +13,24 @@ export default class MealRepositoryMemory implements MealRepository {
     return { mealId };
   }
 
-  async getMealById(mealId: number): Promise<Meal | null> {
-    return this.meals.find((meal) => meal.getId() === mealId) ?? null;
+  async getMealById(userId: number, mealId: number): Promise<Meal | null> {
+    return this.mealsOf(userId).find((meal) => meal.getId() === mealId) ?? null;
   }
 
-  async getMeals({
-    page,
-    limit,
-    search,
-    date,
-  }: MealListQuery): Promise<{ meals: Meal[]; total: number }> {
+  async getMeals(
+    userId: number,
+    { page, limit, search, date }: MealListQuery,
+  ): Promise<{ meals: Meal[]; total: number }> {
     const term = foldCaseAndAccents(search ?? "");
-    const sorted = this.meals
+    const sorted = this.mealsOf(userId)
       .filter((meal) => foldCaseAndAccents(meal.getName()).includes(term))
       .filter((meal) => date === undefined || meal.getDate() === date)
       .sort((a, b) => b.getDate().localeCompare(a.getDate()) || b.getId()! - a.getId()!);
     return { meals: sorted.slice((page - 1) * limit, page * limit), total: sorted.length };
   }
 
-  async getDailyTotals(date: string): Promise<DailyTotals> {
-    const meals = this.meals.filter((meal) => meal.getDate() === date);
+  async getDailyTotals(userId: number, date: string): Promise<DailyTotals> {
+    const meals = this.mealsOf(userId).filter((meal) => meal.getDate() === date);
     const total = (value: (meal: Meal) => number) =>
       meals.reduce((sum, meal) => sum + value(meal), 0);
     return {
@@ -45,20 +43,29 @@ export default class MealRepositoryMemory implements MealRepository {
   }
 
   async updateMeal(meal: Meal): Promise<{ mealId: number }> {
-    const index = this.meals.findIndex((existing) => existing.getId() === meal.getId());
+    const index = this.meals.findIndex(
+      (existing) => existing.getId() === meal.getId() && existing.getUserId() === meal.getUserId(),
+    );
     if (index === -1) throw new MealNotFoundError();
     this.meals[index] = meal;
     return { mealId: meal.getId()! };
   }
 
-  async deleteMeal(mealId: number): Promise<void> {
-    this.meals = this.meals.filter((meal) => meal.getId() !== mealId);
+  async deleteMeal(userId: number, mealId: number): Promise<void> {
+    this.meals = this.meals.filter(
+      (meal) => meal.getId() !== mealId || meal.getUserId() !== userId,
+    );
+  }
+
+  private mealsOf(userId: number): Meal[] {
+    return this.meals.filter((meal) => meal.getUserId() === userId);
   }
 }
 
 function withId(meal: Meal, id: number): Meal {
   return new Meal({
     id,
+    userId: meal.getUserId(),
     name: meal.getName(),
     description: meal.getDescription(),
     date: meal.getDate(),

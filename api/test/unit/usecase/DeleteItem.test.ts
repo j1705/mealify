@@ -3,6 +3,8 @@ import Item from "../../../src/domain/entity/Item";
 import { ConflictError, NotFoundError } from "../../../src/domain/error/DomainError";
 import ItemRepositoryMemory from "../../doubles/ItemRepositoryMemory";
 
+const ANY_USER_ID = 1;
+
 describe("DeleteItemUseCase", () => {
   let itemRepository: ItemRepositoryMemory;
   let deleteItem: DeleteItemUseCase;
@@ -32,7 +34,7 @@ describe("DeleteItemUseCase", () => {
   });
 
   test("Should throw if the item is used in a meal", async () => {
-    itemRepository.markAsUsedInMeal(riceId);
+    itemRepository.markAsUsedInMeal(riceId, ANY_USER_ID);
 
     await expect(deleteItem.execute(riceId)).rejects.toThrow(
       new ConflictError("Item is used in a meal"),

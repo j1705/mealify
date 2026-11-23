@@ -5,6 +5,9 @@ import { MealNotFoundError } from "../../../src/domain/error/DomainError";
 import MealRepositoryMemory from "../../doubles/MealRepositoryMemory";
 import { createItemRepositoryWithFood } from "./mealFixtures";
 
+const USER_ID = 1;
+const OTHER_USER_ID = 2;
+
 describe("DeleteMealUseCase", () => {
   let mealRepository: MealRepositoryMemory;
   let deleteMeal: DeleteMealUseCase;
@@ -17,7 +20,7 @@ describe("DeleteMealUseCase", () => {
       mealRepository,
       itemRepository,
       new SystemClock(),
-    ).execute({
+    ).execute(USER_ID, {
       date: "2026-11-06",
       name: "Lunch",
       items: [{ itemId: riceId, quantity: 150 }],
@@ -26,11 +29,16 @@ describe("DeleteMealUseCase", () => {
   });
 
   test("Should delete a meal", async () => {
-    expect(await deleteMeal.execute(lunchId)).toEqual({ message: "Meal deleted!" });
-    expect(await mealRepository.getMealById(lunchId)).toBeNull();
+    expect(await deleteMeal.execute(USER_ID, lunchId)).toEqual({ message: "Meal deleted!" });
+    expect(await mealRepository.getMealById(USER_ID, lunchId)).toBeNull();
   });
 
   test("Should throw if the meal does not exist", async () => {
-    await expect(deleteMeal.execute(999)).rejects.toThrow(MealNotFoundError);
+    await expect(deleteMeal.execute(USER_ID, 999)).rejects.toThrow(MealNotFoundError);
+  });
+
+  test("Should not delete a meal of another user", async () => {
+    await expect(deleteMeal.execute(OTHER_USER_ID, lunchId)).rejects.toThrow(MealNotFoundError);
+    expect(await mealRepository.getMealById(USER_ID, lunchId)).not.toBeNull();
   });
 });

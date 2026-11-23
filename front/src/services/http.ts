@@ -17,6 +17,21 @@ export class ApiError extends Error {
   }
 }
 
+type UnauthorizedListener = () => void;
+
+const UNAUTHORIZED = 401;
+const AUTH_ROUTES_PREFIX = "/auth/";
+const unauthorizedListeners = new Set<UnauthorizedListener>();
+
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener);
+  return () => unauthorizedListeners.delete(listener);
+}
+
+function isSessionLost(path: string, status: number): boolean {
+  return status === UNAUTHORIZED && !path.startsWith(AUTH_ROUTES_PREFIX);
+}
+
 const CONNECTION_FAILED =
   "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.";
 
@@ -34,6 +49,8 @@ export async function request<T>(
   });
   const data = await response.json().catch(() => null);
   if (!response.ok) {
+    if (isSessionLost(path, response.status))
+      unauthorizedListeners.forEach((listener) => listener());
     throw new ApiError(translateApiMessage(data?.message, fallbackMessage), response.status);
   }
   return data as T;

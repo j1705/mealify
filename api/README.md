@@ -51,6 +51,8 @@ O `.env.test` (copie de `.env.test.example`) aponta para o banco `mealify_test` 
 
 A sessão fica no banco (tabela `sessions`, que guarda só o hash SHA-256 do token). O token viaja no cookie `mealify_session` (`HttpOnly`, `SameSite=Lax`, `Path=/`, 30 dias). As senhas são guardadas com `scrypt`.
 
+Todas as rotas de `/items` e `/meals` exigem sessão e respondem `401` sem ela. As refeições são de cada usuário: as de outro usuário respondem `404`, não aparecem nas listas e não entram nos totais. O catálogo de itens é compartilhado.
+
 | Método e rota         | Descrição                                                                                                           |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `POST /auth/register` | Cadastra `{ email, password }` e já abre a sessão (`201`, `{ userId, email }` + cookie). Senha de 8 a 72 caracteres |
@@ -64,7 +66,7 @@ A sessão fica no banco (tabela `sessions`, que guarda só o hash SHA-256 do tok
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `POST /items`           | Cria um item (`201`)                                                                                                                                        |
 | `GET /items`            | Lista paginada. Query: `page`, `limit` (padrão 20, máx. 100), `search` (ignora acentos), `sort` (`name`, `calories`, `createdAt`) e `order` (`asc`, `desc`) |
-| `GET /items/most-used`  | Itens mais usados em refeições. Query: `limit` (padrão 5, máx. 20)                                                                                          |
+| `GET /items/most-used`  | Itens mais usados nas refeições do usuário. Query: `limit` (padrão 5, máx. 20)                                                                              |
 | `GET /items/:itemId`    | Busca um item                                                                                                                                               |
 | `PUT /items/:itemId`    | Atualiza um item                                                                                                                                            |
 | `DELETE /items/:itemId` | Exclui um item; responde `409` se ele estiver em alguma refeição                                                                                            |

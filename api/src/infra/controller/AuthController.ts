@@ -1,10 +1,10 @@
 import { CredentialsInput, SessionOutput } from "../../application/usecase/auth/AuthInputOutput";
-import AuthenticateUseCase from "../../application/usecase/auth/Authenticate";
 import GetCurrentUserUseCase from "../../application/usecase/auth/GetCurrentUser";
 import LoginUseCase from "../../application/usecase/auth/Login";
 import LogoutUseCase from "../../application/usecase/auth/Logout";
 import RegisterUserUseCase from "../../application/usecase/auth/RegisterUser";
 import HttpServer, { HttpResponse } from "../http/HttpServer";
+import RequestAuthenticator from "../http/RequestAuthenticator";
 import SessionCookie from "../http/SessionCookie";
 
 const NO_BODY = undefined;
@@ -15,7 +15,7 @@ export default class AuthController {
     readonly registerUser: RegisterUserUseCase,
     readonly login: LoginUseCase,
     readonly logout: LogoutUseCase,
-    readonly authenticate: AuthenticateUseCase,
+    readonly authenticator: RequestAuthenticator,
     readonly getCurrentUser: GetCurrentUserUseCase,
     readonly sessionCookie: SessionCookie,
   ) {
@@ -40,10 +40,11 @@ export default class AuthController {
       },
       204,
     );
-    httpServer.register("get", "/auth/me", async ({ cookies }) => {
-      const userId = await authenticate.execute(sessionCookie.read(cookies));
-      return getCurrentUser.execute(userId);
-    });
+    httpServer.register(
+      "get",
+      "/auth/me",
+      authenticator.guard(async (_request, userId) => getCurrentUser.execute(userId)),
+    );
   }
 }
 

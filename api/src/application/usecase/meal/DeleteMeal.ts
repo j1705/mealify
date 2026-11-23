@@ -4,10 +4,10 @@ import MealRepository from "../../repository/MealRepository";
 export default class DeleteMealUseCase {
   constructor(readonly mealRepository: MealRepository) {}
 
-  async execute(mealId: number): Promise<OutputDeleteMeal> {
-    const meal = await this.mealRepository.getMealById(mealId);
+  async execute(userId: number, mealId: number): Promise<OutputDeleteMeal> {
+    const meal = await this.mealRepository.getMealById(userId, mealId);
     if (!meal) throw new MealNotFoundError();
-    await this.mealRepository.deleteMeal(mealId);
+    await this.mealRepository.deleteMeal(userId, mealId);
     return { message: "Meal deleted!" };
   }
 }

@@ -5,6 +5,9 @@ import MealRepositoryMemory from "../../doubles/MealRepositoryMemory";
 import MealItem from "../../../src/domain/entity/MealItem";
 import { NotFoundError } from "../../../src/domain/error/DomainError";
 
+const USER_ID = 1;
+const OTHER_USER_ID = 2;
+
 describe("GetMealUseCase", () => {
   let mealRepository: MealRepositoryMemory;
   let getMeal: GetMealUseCase;
@@ -28,6 +31,7 @@ describe("GetMealUseCase", () => {
     const { mealId } = await mealRepository.saveMeal(
       Meal.create(
         {
+          userId: USER_ID,
           date: "2026-11-06",
           name: "Lunch",
           description: "Rice only",
@@ -37,7 +41,7 @@ describe("GetMealUseCase", () => {
       ),
     );
 
-    const output = await getMeal.execute(mealId);
+    const output = await getMeal.execute(USER_ID, mealId);
 
     expect(output.id).toBe(mealId);
     expect(output.name).toBe("Lunch");
@@ -55,6 +59,32 @@ describe("GetMealUseCase", () => {
   });
 
   test("Should throw if meal does not exist", async () => {
-    await expect(getMeal.execute(999)).rejects.toThrow(NotFoundError);
+    await expect(getMeal.execute(USER_ID, 999)).rejects.toThrow(NotFoundError);
+  });
+
+  test("Should not find a meal of another user", async () => {
+    const rice = new Item({
+      id: 1,
+      name: "Rice",
+      unit: "g",
+      calories: 130,
+      carbohydrate: 28,
+      protein: 2.7,
+      fat: 0.3,
+      createdAt: new Date(),
+    });
+    const { mealId } = await mealRepository.saveMeal(
+      Meal.create(
+        {
+          userId: OTHER_USER_ID,
+          date: "2026-11-06",
+          name: "Lunch",
+          items: [MealItem.create(rice, 150)],
+        },
+        new Date(),
+      ),
+    );
+
+    await expect(getMeal.execute(USER_ID, mealId)).rejects.toThrow(NotFoundError);
   });
 });

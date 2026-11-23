@@ -1,4 +1,4 @@
-import { startTestApi, TestApi, uniqueSuffix } from "./testApi";
+import { NO_SESSION, startTestApi, TestApi, uniqueSuffix } from "./testApi";
 
 describe("Meals API", () => {
   let api: TestApi;
@@ -257,5 +257,65 @@ describe("Meals API", () => {
     const response = await api.request(method, path, method === "PUT" ? validMeal() : undefined);
     expect(response.status).toBe(status);
     expect(response.body).toEqual({ message: expect.any(String) });
+  });
+
+  describe("authentication", () => {
+    test.each([
+      ["POST", "/meals"],
+      ["GET", "/meals"],
+      ["GET", "/meals/totals?date=2026-01-15"],
+      ["GET", "/meals/1"],
+      ["PUT", "/meals/1"],
+      ["DELETE", "/meals/1"],
+    ])("%s %s answers 401 without a session", async (method, path) => {
+      const body = method === "GET" ? undefined : validMeal();
+      const response = await api.request(method, path, body, NO_SESSION);
+
+      expect(response.status).toBe(401);
+      expect(response.body).toEqual({ message: "Authentication required" });
+    });
+  });
+
+  describe("meals of another user", () => {
+    const DAY = "2026-02-20";
+    let mealId: number;
+    let otherCookie: string;
+
+    beforeAll(async () => {
+      mealId = (await createMeal({ ...validMeal(), name: `Mine ${suffix}`, date: DAY })).body
+        .mealId;
+      otherCookie = (await api.registerUser()).cookie;
+    });
+
+    test("are not found by id", async () => {
+      const response = await api.request("GET", `/meals/${mealId}`, undefined, otherCookie);
+
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({ message: "Meal not found" });
+    });
+
+    test("are not listed nor summed", async () => {
+      const list = await api.request("GET", `/meals?date=${DAY}`, undefined, otherCookie);
+      const totals = await api.request("GET", `/meals/totals?date=${DAY}`, undefined, otherCookie);
+
+      expect(list.body.data).toEqual([]);
+      expect(list.body.pagination.total).toBe(0);
+      expect(totals.body).toMatchObject({ mealCount: 0, calories: 0 });
+    });
+
+    test("cannot be updated nor deleted, and stay untouched", async () => {
+      const update = await api.request(
+        "PUT",
+        `/meals/${mealId}`,
+        { ...validMeal(), name: "Stolen" },
+        otherCookie,
+      );
+      const deletion = await api.request("DELETE", `/meals/${mealId}`, undefined, otherCookie);
+
+      expect(update.status).toBe(404);
+      expect(deletion.status).toBe(404);
+      const mine = await api.request("GET", `/meals/${mealId}`);
+      expect(mine.body.name).toBe(`Mine ${suffix}`);
+    });
   });
 });

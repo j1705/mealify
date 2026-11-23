@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { API_URL } from "../../src/config";
-import { ApiError, request } from "../../src/services/http";
+import { ApiError, onUnauthorized, request } from "../../src/services/http";
 
 function stubFetch(status: number, body?: unknown) {
   const response = new Response(body === undefined ? null : JSON.stringify(body), { status });
@@ -109,5 +109,44 @@ describe("request", () => {
     await expect(request("/items", "Não foi possível carregar os itens")).rejects.toThrow(
       "Não foi possível carregar os itens",
     );
+  });
+
+  describe("onUnauthorized", () => {
+    test("tells the listener when the session is gone in the middle of the use", async () => {
+      stubFetch(401, { message: "Authentication required" });
+      const listener = vi.fn();
+      const stopListening = onUnauthorized(listener);
+
+      await request("/meals", "Falhou").catch(() => {});
+      stopListening();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    test.each(["/auth/login", "/auth/me", "/auth/register"])(
+      "stays quiet for the authentication route %s, whose 401 is an expected answer",
+      async (path) => {
+        stubFetch(401, { message: "Invalid email or password" });
+        const listener = vi.fn();
+        const stopListening = onUnauthorized(listener);
+
+        await request(path, "Falhou").catch(() => {});
+        stopListening();
+
+        expect(listener).not.toHaveBeenCalled();
+      },
+    );
+
+    test("stays quiet for other errors and after the listener stops listening", async () => {
+      const listener = vi.fn();
+      const stopListening = onUnauthorized(listener);
+      stubFetch(404, { message: "Meal not found" });
+      await request("/meals/1", "Falhou").catch(() => {});
+      stopListening();
+      stubFetch(401, { message: "Authentication required" });
+      await request("/meals", "Falhou").catch(() => {});
+
+      expect(listener).not.toHaveBeenCalled();
+    });
   });
 });

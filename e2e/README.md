@@ -39,15 +39,16 @@ Os testes rodam em sequência (`workers: 1`), com o navegador no locale `pt-BR`.
 env.ts                  URLs da API e do front de teste
 playwright.config.ts    servidores, navegador e relatórios
 tests/
-  fixtures.ts           fixture `data`: cria itens e refeições pela API e limpa tudo no fim
-  auth.spec.ts          criação de conta, logout, login, senha errada e e-mail repetido
+  fixtures.ts           cada teste cadastra um usuário e abre o navegador logado; fixture `data` cria itens e refeições pela API e limpa tudo no fim
+  auth.spec.ts          criação de conta, logout, login, rotas protegidas e sessão encerrada no meio do uso
   home.spec.ts          resumo do dia e itens mais usados
   items.spec.ts         cadastro, edição, busca, ordenação, paginação e exclusão de itens
-  meals.spec.ts         cadastro, edição, exclusão, busca e paginação de refeições
+  meals.spec.ts         cadastro, edição, exclusão, busca e paginação de refeições; isolamento entre usuários
 ```
 
 ## Escrevendo um teste
 
+- Cada teste já começa logado com um usuário novo. Para testar como visitante, use `test.use({ loggedIn: false })`.
 - Use a fixture `data` de `tests/fixtures.ts` para preparar os dados pela API, em vez de montar tudo pela tela.
 - Coloque `data.suffix` em todo nome criado no teste. A limpeza apaga tudo o que tem esse sufixo, mesmo quando o teste falha no meio.
 - Localize os elementos pelo que o usuário vê: papéis, rótulos e textos em português. O código e o título do teste ficam em inglês.

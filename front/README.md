@@ -4,6 +4,8 @@ Interface web do Mealify, feita com React 19, TypeScript, Vite e React Router. O
 
 ## Telas
 
+Todas as telas, menos `/login` e `/register`, exigem login. Quem não está logado vai para `/login?next=<rota>` e volta para a rota depois de entrar. Se a sessão acabar no meio do uso (a API responde `401`), o app leva de novo ao login.
+
 | Rota                                | Tela                                                            |
 | ----------------------------------- | --------------------------------------------------------------- |
 | `/`                                 | Início: resumo do dia (calorias e macros) e itens mais usados   |

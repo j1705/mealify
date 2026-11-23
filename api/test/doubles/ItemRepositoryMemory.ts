@@ -10,7 +10,7 @@ import {
 export default class ItemRepositoryMemory implements ItemRepository {
   private items: Item[] = [];
   private nextId = 1;
-  private mealCountByItemId = new Map<number, number>();
+  private mealCountsByUserId = new Map<number, Map<number, number>>();
 
   async saveItem(item: Item): Promise<{ itemId: number }> {
     this.ensureNameIsFree(item);
@@ -36,17 +36,20 @@ export default class ItemRepositoryMemory implements ItemRepository {
     return this.items.find((item) => item.getId() === itemId) ?? null;
   }
 
-  markAsUsedInMeal(itemId: number) {
-    this.mealCountByItemId.set(itemId, (this.mealCountByItemId.get(itemId) ?? 0) + 1);
+  markAsUsedInMeal(itemId: number, userId: number) {
+    const mealCounts = this.mealCountsOf(userId);
+    mealCounts.set(itemId, (mealCounts.get(itemId) ?? 0) + 1);
+    this.mealCountsByUserId.set(userId, mealCounts);
   }
 
   async isUsedInMeals(itemId: number): Promise<boolean> {
-    return this.mealCountByItemId.has(itemId);
+    return [...this.mealCountsByUserId.values()].some((mealCounts) => mealCounts.has(itemId));
   }
 
-  async getMostUsedItems(limit: number): Promise<ItemUsage[]> {
+  async getMostUsedItems(userId: number, limit: number): Promise<ItemUsage[]> {
+    const mealCounts = this.mealCountsOf(userId);
     return this.items
-      .map((item) => ({ item, mealCount: this.mealCountByItemId.get(item.getId()!) ?? 0 }))
+      .map((item) => ({ item, mealCount: mealCounts.get(item.getId()!) ?? 0 }))
       .filter(({ mealCount }) => mealCount > 0)
       .sort(
         (a, b) =>
@@ -55,6 +58,10 @@ export default class ItemRepositoryMemory implements ItemRepository {
           newestFirst(a.item, b.item),
       )
       .slice(0, limit);
+  }
+
+  private mealCountsOf(userId: number): Map<number, number> {
+    return this.mealCountsByUserId.get(userId) ?? new Map();
   }
 
   async updateItem(item: Item): Promise<{ itemId: number }> {
@@ -74,7 +81,7 @@ export default class ItemRepositoryMemory implements ItemRepository {
   }
 
   async deleteItem(itemId: number): Promise<void> {
-    if (this.mealCountByItemId.has(itemId)) throw new ConflictError("Item is used in a meal");
+    if (await this.isUsedInMeals(itemId)) throw new ConflictError("Item is used in a meal");
     this.items = this.items.filter((item) => item.getId() !== itemId);
   }
 }

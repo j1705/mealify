@@ -1,4 +1,4 @@
-import { startTestApi, TestApi, uniqueSuffix } from "./testApi";
+import { NO_SESSION, startTestApi, TestApi, uniqueSuffix } from "./testApi";
 
 describe("Items API", () => {
   let api: TestApi;
@@ -156,6 +156,30 @@ describe("Items API", () => {
     ]);
   });
 
+  test("GET /items/most-used counts only the meals of the logged in user", async () => {
+    const item = await createItem({ name: `Used by another user ${suffix}` });
+    const other = await api.registerUser();
+    const meal = await api.request(
+      "POST",
+      "/meals",
+      {
+        name: "Other's meal",
+        date: "2026-01-15",
+        items: [{ itemId: item.body.itemId, quantity: 10 }],
+      },
+      other.cookie,
+    );
+    api.trackMeal(meal.body.mealId);
+
+    const mine = await api.request("GET", "/items/most-used?limit=20");
+    const theirs = await api.request("GET", "/items/most-used?limit=20", undefined, other.cookie);
+
+    const named = (body: { data: { id: number }[] }) =>
+      body.data.filter(({ id }) => id === item.body.itemId);
+    expect(named(mine.body)).toEqual([]);
+    expect(named(theirs.body)).toEqual([expect.objectContaining({ mealCount: 1 })]);
+  });
+
   test("GET /items/most-used answers 400 for a limit above 20", async () => {
     const response = await api.request("GET", "/items/most-used?limit=21");
 
@@ -217,5 +241,20 @@ describe("Items API", () => {
     const response = await api.request(method, path, method === "PUT" ? chicken : undefined);
     expect(response.status).toBe(status);
     expect(response.body).toEqual({ message: expect.any(String) });
+  });
+
+  test.each([
+    ["POST", "/items"],
+    ["GET", "/items"],
+    ["GET", "/items/most-used"],
+    ["GET", "/items/1"],
+    ["PUT", "/items/1"],
+    ["DELETE", "/items/1"],
+  ])("%s %s answers 401 without a session", async (method, path) => {
+    const body = method === "GET" ? undefined : chicken;
+    const response = await api.request(method, path, body, NO_SESSION);
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ message: "Authentication required" });
   });
 });

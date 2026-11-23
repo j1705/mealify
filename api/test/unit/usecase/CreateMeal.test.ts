@@ -6,6 +6,9 @@ import FixedClock from "../../doubles/FixedClock";
 
 const now = new Date("2026-11-22T12:00:00.000Z");
 
+const USER_ID = 1;
+const OTHER_USER_ID = 2;
+
 describe("CreateMealUseCase", () => {
   let mealRepository: MealRepositoryMemory;
   let createMeal: CreateMealUseCase;
@@ -20,7 +23,7 @@ describe("CreateMealUseCase", () => {
   });
 
   test("Should create a meal and return calculated calories and macronutrients", async () => {
-    const output = await createMeal.execute({
+    const output = await createMeal.execute(USER_ID, {
       date: "2026-11-06",
       name: "Lunch",
       items: [
@@ -43,30 +46,30 @@ describe("CreateMealUseCase", () => {
     expect(output.items[0]?.macronutrients.fat).toBeCloseTo(0.45);
     expect(output.items[1]?.calories).toBeCloseTo(140);
     expect(output.items[1]?.macronutrients.protein).toBeCloseTo(12);
-    expect((await mealRepository.getMeals({ page: 1, limit: 20 })).total).toBe(1);
+    expect((await mealRepository.getMeals(USER_ID, { page: 1, limit: 20 })).total).toBe(1);
   });
 
   test("Should stamp the meal with the clock's current time", async () => {
-    const { mealId } = await createMeal.execute({
+    const { mealId } = await createMeal.execute(USER_ID, {
       date: "2026-11-06",
       name: "Lunch",
       items: [{ itemId: riceId, quantity: 100 }],
     });
 
-    expect((await mealRepository.getMealById(mealId))?.getCreatedAt()).toEqual(now);
+    expect((await mealRepository.getMealById(USER_ID, mealId))?.getCreatedAt()).toEqual(now);
   });
 
   test("Should allow meals with the same name", async () => {
     const input = { name: "Lunch", items: [{ itemId: riceId, quantity: 100 }] };
-    await createMeal.execute({ ...input, date: "2026-11-05" });
-    await createMeal.execute({ ...input, date: "2026-11-06" });
+    await createMeal.execute(USER_ID, { ...input, date: "2026-11-05" });
+    await createMeal.execute(USER_ID, { ...input, date: "2026-11-06" });
 
-    expect((await mealRepository.getMeals({ page: 1, limit: 20 })).total).toBe(2);
+    expect((await mealRepository.getMeals(USER_ID, { page: 1, limit: 20 })).total).toBe(2);
   });
 
   test("Should throw if the date is invalid", async () => {
     await expect(
-      createMeal.execute({
+      createMeal.execute(USER_ID, {
         date: "2026-02-30",
         name: "Lunch",
         items: [{ itemId: riceId, quantity: 100 }],
@@ -76,7 +79,7 @@ describe("CreateMealUseCase", () => {
 
   test("Should reject an invalid quantity before looking up the items", async () => {
     await expect(
-      createMeal.execute({
+      createMeal.execute(USER_ID, {
         date: "2026-11-06",
         name: "Lunch",
         items: [
@@ -89,12 +92,23 @@ describe("CreateMealUseCase", () => {
 
   test("Should throw if an item does not exist", async () => {
     await expect(
-      createMeal.execute({
+      createMeal.execute(USER_ID, {
         date: "2026-11-06",
         name: "Lunch",
         items: [{ itemId: 999, quantity: 100 }],
       }),
     ).rejects.toThrow(NotFoundError);
-    expect((await mealRepository.getMeals({ page: 1, limit: 20 })).total).toBe(0);
+    expect((await mealRepository.getMeals(USER_ID, { page: 1, limit: 20 })).total).toBe(0);
+  });
+
+  test("Should create the meal for the given user only", async () => {
+    const { mealId } = await createMeal.execute(USER_ID, {
+      date: "2026-11-06",
+      name: "Lunch",
+      items: [{ itemId: riceId, quantity: 100 }],
+    });
+
+    expect((await mealRepository.getMealById(USER_ID, mealId))?.getUserId()).toBe(USER_ID);
+    expect(await mealRepository.getMealById(OTHER_USER_ID, mealId)).toBeNull();
   });
 });

@@ -6,6 +6,7 @@ import DatabaseConnection, { PgPromiseAdapter } from "../../src/infra/database/D
 import ItemRepositoryDatabase from "../../src/infra/repositoryDatabase/item/ItemRepositoryDatabase";
 import MealRepositoryDatabase from "../../src/infra/repositoryDatabase/meal/MealRepositoryDatabase";
 import { describeMealRepositoryContract } from "../contract/mealRepositoryContract";
+import { deleteTestUsers, insertTestUser } from "./testUsers";
 
 const uniqueSuffix = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -26,11 +27,18 @@ describe("MealRepositoryDatabase", () => {
         new Date(),
       ),
     );
+    const userIds: number[] = [];
     return {
       repository: new MealRepositoryDatabase(connection),
       persistedItem: (await itemRepository.getItemById(itemId))!,
+      async createUser() {
+        const userId = await insertTestUser(connection);
+        userIds.push(userId);
+        return userId;
+      },
       async dispose(createdMealIds) {
         await connection.query(`delete from meals where id = any($1)`, [createdMealIds]);
+        await deleteTestUsers(connection, userIds);
         await connection.query(`delete from items where id = $1`, [itemId]);
         await connection.close();
       },
@@ -44,15 +52,18 @@ describe("MealRepositoryDatabase", () => {
     const itemIds: number[] = [];
     const mealIds: number[] = [];
     const suffix = uniqueSuffix();
+    let userId: number;
 
-    beforeAll(() => {
+    beforeAll(async () => {
       connection = new PgPromiseAdapter(readDatabaseConfig());
       itemRepository = new ItemRepositoryDatabase(connection);
       mealRepository = new MealRepositoryDatabase(connection);
+      userId = await insertTestUser(connection);
     });
 
     afterAll(async () => {
       await connection.query(`delete from meals where id = any($1)`, [mealIds]);
+      await deleteTestUsers(connection, [userId]);
       await connection.query(`delete from items where id = any($1)`, [itemIds]);
       await connection.close();
     });
@@ -79,6 +90,7 @@ describe("MealRepositoryDatabase", () => {
       const { mealId } = await mealRepository.saveMeal(
         Meal.create(
           {
+            userId,
             date: "2026-11-06",
             name: `Dinner ${suffix}`,
             description: null,
@@ -126,7 +138,7 @@ describe("MealRepositoryDatabase", () => {
         }),
       );
 
-      const fetchedMeal = await mealRepository.getMealById(mealId);
+      const fetchedMeal = await mealRepository.getMealById(userId, mealId);
       expect(fetchedMeal?.getCalories()).toBeCloseTo(200);
       expect(fetchedMeal?.getItems()[0]?.getCalories()).toBeCloseTo(200);
       expect(fetchedMeal?.getItems()[0]?.getMacronutrients().protein).toBeCloseTo(14);
@@ -152,10 +164,31 @@ describe("MealRepositoryDatabase", () => {
       const bean = await saveItem("Cascade bean");
       const mealId = await saveMeal(bean, 40);
 
-      await mealRepository.deleteMeal(mealId);
+      await mealRepository.deleteMeal(userId, mealId);
 
       const items = await connection.query(`select 1 from meal_items where meal_id = $1`, [mealId]);
       expect(items).toHaveLength(0);
+    });
+
+    test("Should delete the meals of a user that is deleted", async () => {
+      const bean = await saveItem("Owner bean");
+      const ownerId = await insertTestUser(connection);
+      const { mealId } = await mealRepository.saveMeal(
+        Meal.create(
+          {
+            userId: ownerId,
+            date: "2026-11-06",
+            name: `Owned ${suffix}`,
+            items: [MealItem.create(bean, 10)],
+          },
+          new Date(),
+        ),
+      );
+      mealIds.push(mealId);
+
+      await deleteTestUsers(connection, [ownerId]);
+
+      expect(await connection.query(`select 1 from meals where id = $1`, [mealId])).toHaveLength(0);
     });
   });
 });

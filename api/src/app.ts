@@ -24,6 +24,7 @@ import ItemController from "./infra/controller/ItemController";
 import MealController from "./infra/controller/MealController";
 import DatabaseConnection from "./infra/database/DatabaseConnection";
 import HttpServer, { ExpressAdapter } from "./infra/http/HttpServer";
+import RequestAuthenticator from "./infra/http/RequestAuthenticator";
 import SessionCookie from "./infra/http/SessionCookie";
 import ItemRepositoryDatabase from "./infra/repositoryDatabase/item/ItemRepositoryDatabase";
 import MealRepositoryDatabase from "./infra/repositoryDatabase/meal/MealRepositoryDatabase";
@@ -48,19 +49,25 @@ export function buildApp(
   const passwordHasher = new ScryptPasswordHasher();
   const sessionTokens = new CryptoSessionTokens();
   const sessionStarter = new SessionStarter(sessionRepository, sessionTokens, clock);
+  const sessionCookie = new SessionCookie(secureCookies);
+  const authenticator = new RequestAuthenticator(
+    new AuthenticateUseCase(sessionRepository, sessionTokens, clock),
+    sessionCookie,
+  );
 
   new AuthController(
     httpServer,
     new RegisterUserUseCase(userRepository, passwordHasher, sessionStarter, clock),
     new LoginUseCase(userRepository, passwordHasher, sessionStarter),
     new LogoutUseCase(sessionRepository, sessionTokens),
-    new AuthenticateUseCase(sessionRepository, sessionTokens, clock),
+    authenticator,
     new GetCurrentUserUseCase(userRepository),
-    new SessionCookie(secureCookies),
+    sessionCookie,
   );
 
   new ItemController(
     httpServer,
+    authenticator,
     new CreateItemUseCase(itemRepository, clock),
     new GetItemsUseCase(itemRepository),
     new GetItemUseCase(itemRepository),
@@ -71,6 +78,7 @@ export function buildApp(
 
   new MealController(
     httpServer,
+    authenticator,
     new CreateMealUseCase(mealRepository, itemRepository, clock),
     new GetMealsUseCase(mealRepository),
     new GetMealUseCase(mealRepository),

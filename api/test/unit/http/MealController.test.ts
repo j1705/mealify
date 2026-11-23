@@ -1,4 +1,8 @@
+import AuthenticateUseCase from "../../../src/application/usecase/auth/Authenticate";
+import { AuthenticationRequiredError } from "../../../src/domain/error/DomainError";
 import BadRequestError from "../../../src/infra/http/BadRequestError";
+import RequestAuthenticator from "../../../src/infra/http/RequestAuthenticator";
+import SessionCookie, { SESSION_COOKIE_NAME } from "../../../src/infra/http/SessionCookie";
 import CreateMealUseCase from "../../../src/application/usecase/meal/CreateMeal";
 import DeleteMealUseCase from "../../../src/application/usecase/meal/DeleteMeal";
 import GetDailyTotalsUseCase from "../../../src/application/usecase/meal/GetDailyTotals";
@@ -12,6 +16,16 @@ import HttpServer, {
   HttpQuery,
 } from "../../../src/infra/http/HttpServer";
 
+const USER_ID = 7;
+const SESSION = { [SESSION_COOKIE_NAME]: "token" };
+
+const authenticate = {
+  execute: async (token: string | undefined) => {
+    if (!token) throw new AuthenticationRequiredError();
+    return USER_ID;
+  },
+} as unknown as AuthenticateUseCase;
+
 describe("MealController", () => {
   let handlers: Record<string, HttpCallback>;
   let useCases: Record<
@@ -19,7 +33,7 @@ describe("MealController", () => {
     { execute: jest.Mock }
   >;
   const route = (key: string) => (params: HttpParams, body: unknown, query: HttpQuery) =>
-    handlers[key]!({ params, body, query, cookies: {} });
+    handlers[key]!({ params, body, query, cookies: SESSION });
 
   beforeEach(() => {
     handlers = {};
@@ -39,6 +53,7 @@ describe("MealController", () => {
     };
     new MealController(
       httpServer,
+      new RequestAuthenticator(authenticate, new SessionCookie(false)),
       useCases.create as unknown as CreateMealUseCase,
       useCases.getAll as unknown as GetMealsUseCase,
       useCases.get as unknown as GetMealUseCase,
@@ -95,17 +110,17 @@ describe("MealController", () => {
 
   test("POST /meals should call the use case with a valid body", async () => {
     await route("post /meals")({}, validBody, {});
-    expect(useCases.create.execute).toHaveBeenCalledWith(validBody);
+    expect(useCases.create.execute).toHaveBeenCalledWith(USER_ID, validBody);
   });
 
   test("GET /meals should use the default pagination", async () => {
     await route("get /meals")({}, null, {});
-    expect(useCases.getAll.execute).toHaveBeenCalledWith({ page: 1, limit: 20 });
+    expect(useCases.getAll.execute).toHaveBeenCalledWith(USER_ID, { page: 1, limit: 20 });
   });
 
   test("GET /meals should pass the requested pagination", async () => {
     await route("get /meals")({}, null, { page: "3", limit: "50" });
-    expect(useCases.getAll.execute).toHaveBeenCalledWith({ page: 3, limit: 50 });
+    expect(useCases.getAll.execute).toHaveBeenCalledWith(USER_ID, { page: 3, limit: 50 });
   });
 
   test("GET /meals should reject an invalid pagination", async () => {
@@ -115,17 +130,17 @@ describe("MealController", () => {
 
   test("GET /meals/:mealId should call the use case with the parsed id", async () => {
     await route("get /meals/:mealId")({ mealId: "7" }, null, {});
-    expect(useCases.get.execute).toHaveBeenCalledWith(7);
+    expect(useCases.get.execute).toHaveBeenCalledWith(USER_ID, 7);
   });
 
   test("PUT /meals/:mealId should call the use case with the parsed id and body", async () => {
     await route("put /meals/:mealId")({ mealId: "7" }, validBody, {});
-    expect(useCases.update.execute).toHaveBeenCalledWith(7, validBody);
+    expect(useCases.update.execute).toHaveBeenCalledWith(USER_ID, 7, validBody);
   });
 
   test("DELETE /meals/:mealId should call the use case with the parsed id", async () => {
     await route("delete /meals/:mealId")({ mealId: "7" }, null, {});
-    expect(useCases.delete.execute).toHaveBeenCalledWith(7);
+    expect(useCases.delete.execute).toHaveBeenCalledWith(USER_ID, 7);
   });
 
   describe.each([
@@ -139,5 +154,24 @@ describe("MealController", () => {
       );
       expect(useCases[useCase].execute).not.toHaveBeenCalled();
     });
+  });
+
+  test("GET /meals/totals should ask the totals of the user for the date", async () => {
+    await route("get /meals/totals")({}, null, { date: "2026-11-22" });
+    expect(useCases.dailyTotals.execute).toHaveBeenCalledWith(USER_ID, "2026-11-22");
+  });
+
+  test.each([
+    "post /meals",
+    "get /meals",
+    "get /meals/totals",
+    "get /meals/:mealId",
+    "put /meals/:mealId",
+    "delete /meals/:mealId",
+  ])("%s should refuse a request without a session", async (key) => {
+    await expect(
+      handlers[key]!({ params: { mealId: "7" }, body: validBody, query: {}, cookies: {} }),
+    ).rejects.toThrow(AuthenticationRequiredError);
+    Object.values(useCases).forEach((useCase) => expect(useCase.execute).not.toHaveBeenCalled());
   });
 });

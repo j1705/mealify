@@ -4,6 +4,9 @@ import GetMealsUseCase from "../../../src/application/usecase/meal/GetMeals";
 import MealRepositoryMemory from "../../doubles/MealRepositoryMemory";
 import { createItemRepositoryWithFood } from "./mealFixtures";
 
+const USER_ID = 1;
+const OTHER_USER_ID = 2;
+
 describe("GetMealsUseCase", () => {
   let mealRepository: MealRepositoryMemory;
   let getMeals: GetMealsUseCase;
@@ -13,26 +16,38 @@ describe("GetMealsUseCase", () => {
     getMeals = new GetMealsUseCase(mealRepository);
     const { itemRepository, riceId, eggId } = await createItemRepositoryWithFood();
     const createMeal = new CreateMealUseCase(mealRepository, itemRepository, new SystemClock());
-    await createMeal.execute({
+    await createMeal.execute(USER_ID, {
       date: "2026-11-06",
       name: "Lunch",
       items: [{ itemId: riceId, quantity: 150 }],
     });
-    await createMeal.execute({
+    await createMeal.execute(USER_ID, {
       date: "2026-11-06",
       name: "Dinner",
       description: "Eggs",
       items: [{ itemId: eggId, quantity: 2 }],
     });
-    await createMeal.execute({
+    await createMeal.execute(USER_ID, {
       date: "2026-11-06",
       name: "Snack",
       items: [{ itemId: eggId, quantity: 1 }],
     });
+    await createMeal.execute(OTHER_USER_ID, {
+      date: "2026-11-06",
+      name: "Someone else's lunch",
+      items: [{ itemId: riceId, quantity: 100 }],
+    });
+  });
+
+  test("Should list only the meals of the user", async () => {
+    const output = await getMeals.execute(USER_ID, { page: 1, limit: 20 });
+
+    expect(output.data.map((meal) => meal.name).sort()).toEqual(["Dinner", "Lunch", "Snack"]);
+    expect(output.pagination.total).toBe(3);
   });
 
   test("Should filter by name and date, counting only the matches", async () => {
-    const output = await getMeals.execute({
+    const output = await getMeals.execute(USER_ID, {
       page: 1,
       limit: 20,
       search: "NER",
@@ -44,13 +59,13 @@ describe("GetMealsUseCase", () => {
   });
 
   test("Should return nothing for a day without meals", async () => {
-    const output = await getMeals.execute({ page: 1, limit: 20, date: "2026-11-07" });
+    const output = await getMeals.execute(USER_ID, { page: 1, limit: 20, date: "2026-11-07" });
 
     expect(output.data).toEqual([]);
   });
 
   test("Should list meals newest first, with their items", async () => {
-    const output = await getMeals.execute({ page: 1, limit: 20 });
+    const output = await getMeals.execute(USER_ID, { page: 1, limit: 20 });
 
     expect(output.data.map((meal) => meal.name)).toEqual(["Snack", "Dinner", "Lunch"]);
     expect(output.data[1]).toEqual({
@@ -78,18 +93,24 @@ describe("GetMealsUseCase", () => {
 
   test("Should order by meal date before creation order", async () => {
     const { itemRepository, eggId } = await createItemRepositoryWithFood();
-    await new CreateMealUseCase(mealRepository, itemRepository, new SystemClock()).execute({
-      date: "2026-11-01",
-      name: "Old dinner",
-      items: [{ itemId: eggId, quantity: 1 }],
-    });
-    await new CreateMealUseCase(mealRepository, itemRepository, new SystemClock()).execute({
-      date: "2026-11-07",
-      name: "Tomorrow lunch",
-      items: [{ itemId: eggId, quantity: 1 }],
-    });
+    await new CreateMealUseCase(mealRepository, itemRepository, new SystemClock()).execute(
+      USER_ID,
+      {
+        date: "2026-11-01",
+        name: "Old dinner",
+        items: [{ itemId: eggId, quantity: 1 }],
+      },
+    );
+    await new CreateMealUseCase(mealRepository, itemRepository, new SystemClock()).execute(
+      USER_ID,
+      {
+        date: "2026-11-07",
+        name: "Tomorrow lunch",
+        items: [{ itemId: eggId, quantity: 1 }],
+      },
+    );
 
-    const output = await getMeals.execute({ page: 1, limit: 20 });
+    const output = await getMeals.execute(USER_ID, { page: 1, limit: 20 });
 
     expect(output.data.map((meal) => meal.name)).toEqual([
       "Tomorrow lunch",
@@ -101,21 +122,21 @@ describe("GetMealsUseCase", () => {
   });
 
   test("Should return the requested page", async () => {
-    const output = await getMeals.execute({ page: 2, limit: 2 });
+    const output = await getMeals.execute(USER_ID, { page: 2, limit: 2 });
 
     expect(output.data.map((meal) => meal.name)).toEqual(["Lunch"]);
     expect(output.pagination).toEqual({ page: 2, limit: 2, total: 3, totalPages: 2 });
   });
 
   test("Should return an empty page beyond the last one", async () => {
-    const output = await getMeals.execute({ page: 5, limit: 2 });
+    const output = await getMeals.execute(USER_ID, { page: 5, limit: 2 });
 
     expect(output.data).toEqual([]);
     expect(output.pagination).toEqual({ page: 5, limit: 2, total: 3, totalPages: 2 });
   });
 
   test("Should return an empty list when there are no meals", async () => {
-    const output = await new GetMealsUseCase(new MealRepositoryMemory()).execute({
+    const output = await new GetMealsUseCase(new MealRepositoryMemory()).execute(USER_ID, {
       page: 1,
       limit: 20,
     });

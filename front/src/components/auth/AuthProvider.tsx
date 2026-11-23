@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import * as authService from "../../services/authService";
+import { onUnauthorized } from "../../services/http";
 import type { Credentials, User } from "../../types/User";
 import { AuthContext, type AuthStatus } from "./authContext";
 
@@ -24,6 +25,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     return () => controller.abort();
   }, []);
+
+  useEffect(() => onUnauthorized(() => setSession(ANONYMOUS)), []);
 
   const login = useCallback(async (credentials: Credentials) => {
     setSession(authenticated(await authService.login(credentials)));
