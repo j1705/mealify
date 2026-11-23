@@ -27,10 +27,10 @@ export default class ItemController {
     httpServer.register(
       "post",
       "/items",
-      async (_params, body) => createItem.execute(body as ItemInput),
+      async ({ body }) => createItem.execute(body as ItemInput),
       201,
     );
-    httpServer.register("get", "/items", async (_params, _body, query) => {
+    httpServer.register("get", "/items", async ({ query }) => {
       const pagination = new HandlePagination(query);
       const search = new HandleSearch(query.search);
       const sort = new HandleItemSort(query);
@@ -40,19 +40,19 @@ export default class ItemController {
         sort: sort.getValue(),
       });
     });
-    httpServer.register("get", "/items/most-used", async (_params, _body, query) => {
+    httpServer.register("get", "/items/most-used", async ({ query }) => {
       const limit = new HandleLimit(query.limit, MOST_USED_LIMITS);
       return getMostUsedItems.execute(limit.getValue());
     });
-    httpServer.register("get", "/items/:itemId", async (params) => {
+    httpServer.register("get", "/items/:itemId", async ({ params }) => {
       const itemId = new HandleId(params.itemId);
       return getItem.execute(itemId.getValue());
     });
-    httpServer.register("put", "/items/:itemId", async (params, body) => {
+    httpServer.register("put", "/items/:itemId", async ({ params, body }) => {
       const itemId = new HandleId(params.itemId);
       return updateItem.execute(itemId.getValue(), body as ItemInput);
     });
-    httpServer.register("delete", "/items/:itemId", async (params) => {
+    httpServer.register("delete", "/items/:itemId", async ({ params }) => {
       const itemId = new HandleId(params.itemId);
       return deleteItem.execute(itemId.getValue());
     });

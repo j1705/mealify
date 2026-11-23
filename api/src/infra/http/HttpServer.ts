@@ -9,11 +9,12 @@ import { respondWithError } from "./respondWithError";
 export type HttpMethod = "get" | "post" | "put" | "delete";
 export type HttpParams = Record<string, string>;
 export type HttpQuery = Record<string, string>;
-export type HttpCallback = (
-  params: HttpParams,
-  body: unknown,
-  query: HttpQuery,
-) => Promise<unknown>;
+export type HttpRequest = {
+  params: HttpParams;
+  body: unknown;
+  query: HttpQuery;
+};
+export type HttpCallback = (request: HttpRequest) => Promise<unknown>;
 
 export type RunningServer = {
   port: number;
@@ -39,11 +40,11 @@ export class ExpressAdapter implements HttpServer {
     if (this.routesClosed) throw new Error("Routes must be registered before listen");
     this.app[method](url, async (req: Request, res: Response) => {
       try {
-        const output = await callback(
-          req.params as HttpParams,
-          req.body,
-          requireSingleValuedQuery(req.query),
-        );
+        const output = await callback({
+          params: req.params as HttpParams,
+          body: req.body,
+          query: requireSingleValuedQuery(req.query),
+        });
         res.status(statusCode).json(output);
       } catch (error) {
         respondWithError(res, error);

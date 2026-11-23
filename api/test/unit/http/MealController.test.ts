@@ -6,7 +6,11 @@ import GetMealUseCase from "../../../src/application/usecase/meal/GetMeal";
 import GetMealsUseCase from "../../../src/application/usecase/meal/GetMeals";
 import UpdateMealUseCase from "../../../src/application/usecase/meal/UpdateMeal";
 import MealController from "../../../src/infra/controller/MealController";
-import HttpServer, { HttpCallback } from "../../../src/infra/http/HttpServer";
+import HttpServer, {
+  HttpCallback,
+  HttpParams,
+  HttpQuery,
+} from "../../../src/infra/http/HttpServer";
 
 describe("MealController", () => {
   let handlers: Record<string, HttpCallback>;
@@ -14,7 +18,8 @@ describe("MealController", () => {
     "create" | "getAll" | "get" | "update" | "delete" | "dailyTotals",
     { execute: jest.Mock }
   >;
-  const route = (key: string) => handlers[key]!;
+  const route = (key: string) => (params: HttpParams, body: unknown, query: HttpQuery) =>
+    handlers[key]!({ params, body, query });
 
   beforeEach(() => {
     handlers = {};
